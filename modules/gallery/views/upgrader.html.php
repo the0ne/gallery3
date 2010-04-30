@@ -5,6 +5,7 @@
     <link rel="stylesheet" type="text/css" href="<?= url::file("modules/gallery/css/upgrader.css") ?>"
           media="screen,print,projection" />
     <script src="<?= url::file("lib/jquery.js") ?>" type="text/javascript"></script>
+    <script src="<?= url::file("lib/jquery.compat-1-3.js") ?>" type="text/javascript"></script>
   </head>
   <body<? if (locales::is_rtl()) { echo ' class="rtl"'; } ?>>
     <div id="outer">

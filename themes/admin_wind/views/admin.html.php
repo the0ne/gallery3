@@ -24,6 +24,7 @@
     <![endif]-->
 
    <?= $theme->script("jquery.js") ?>
+   <?= $theme->script("jquery.compat-1.3.js") ?>
    <?= $theme->script("jquery.form.js") ?>
    <?= $theme->script("jquery-ui.js") ?>
    <?= $theme->script("gallery.common.js") ?>

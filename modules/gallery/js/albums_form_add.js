@@ -1,3 +1,4 @@
+alert("TEST");
 $("#g-add-album-form input[name=title]").change(
   function() {
     $("#g-add-album-form input[name=name]").attr(
