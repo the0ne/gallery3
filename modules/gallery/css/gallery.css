@@ -30,7 +30,7 @@
 #g-add-photos-canvas object,
 #g-add-photos-button {
   left: 137px;
-  margin: 0 0 .5em 0;
+  margin: .5em  0;
   padding: .4em 1em;
   position: absolute;
   top: 0;
@@ -38,8 +38,11 @@
 }
 
 #g-add-photos-canvas object {
-  margin: 0;
   z-index: 100;
+}
+
+#g-add-photos-canvas .uploadifyQueue {
+  margin-top: .5em;
 }
 
 #g-add-photos-canvas .uploadifyQueueItem {
@@ -75,32 +78,24 @@
   margin-bottom: 0
 }
 
+#g-add-photos-status-message {
+  float: right;
+}
+
 /* Permissions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
 #g-edit-permissions-form {
-	clear: both;
+  clear: both;
 }
 
-#g-edit-permissions-form td {
-  background-image: none;
-}
-
-#g-edit-permissions-form fieldset {
-	border: 1px solid #ccc;
+#g-edit-permissions-form th {
+  text-align: center;
 }
 
 #g-permissions .g-denied,
 #g-permissions .g-allowed {
   text-align: center;
   vertical-align: middle;
-}
-
-#g-permissions .g-denied {
-  background-color: #fcc;
-}
-
-#g-permissions .g-allowed {
-  background-color: #cfc;
 }
 
 /* Move items ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
@@ -196,4 +191,16 @@
 
 .rtl #g-user-profile .g-avatar {
   margin-left: .6em;
+}
+
+.rtl #g-languages-form table {
+  margin: 0 0 1em 3em;
+}
+
+.rtl #g-translations ol {
+  margin: 0 2em 1em 0;
+}
+
+.rtl #g-add-photos-status-message {
+  float: left;
 }

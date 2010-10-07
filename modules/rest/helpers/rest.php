@@ -18,11 +18,34 @@
  * Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA  02110-1301, USA.
  */
 class rest_Core {
+  const API_VERSION = "3.0";
+
   static function reply($data=array()) {
     Session::instance()->abort_save();
 
-    if (Input::instance()->get("output") == "html") {
-      header("Content-type: text/html");
+    header("X-Gallery-API-Version: " . rest::API_VERSION);
+    switch (Input::instance()->get("output", "json")) {
+    case "json":
+      json::reply($data);
+      break;
+
+    case "jsonp":
+      if (!($callback = Input::instance()->get("callback", ""))) {
+        throw new Rest_Exception(
+          "Bad Request", 400, array("errors" => array("callback" => "missing")));
+      }
+
+      if (preg_match('/^[$A-Za-z_][0-9A-Za-z_]*$/', $callback) == 1) {
+        header("Content-type: application/javascript; charset=UTF-8");
+        print "$callback(" . json_encode($data) . ")";
+      } else {
+        throw new Rest_Exception(
+          "Bad Request", 400, array("errors" => array("callback" => "invalid")));
+      }
+      break;
+
+    case "html":
+      header("Content-type: text/html; charset=UTF-8");
       if ($data) {
         $html = preg_replace(
           "#([\w]+?://[\w]+[^ \'\"\n\r\t<]*)#ise", "'<a href=\"\\1\" >\\1</a>'",
@@ -31,15 +54,21 @@ class rest_Core {
         $html = t("Empty response");
       }
       print "<pre>$html</pre>";
-    } else {
-      header("Content-type: application/json");
-      print json_encode($data);
+      break;
+
+    default:
+      throw new Rest_Exception("Bad Request", 400);
     }
   }
 
   static function set_active_user($access_key) {
     if (empty($access_key)) {
-      throw new Rest_Exception("Forbidden", 403);
+      if (module::get_var("rest", "allow_guest_access")) {
+        identity::set_active_user(identity::guest());
+        return;
+      } else {
+        throw new Rest_Exception("Forbidden", 403);
+      }
     }
 
     $key = ORM::factory("user_access_key")
@@ -58,17 +87,28 @@ class rest_Core {
     identity::set_active_user($user);
   }
 
-  static function get_access_key($user_id) {
+  static function reset_access_key() {
     $key = ORM::factory("user_access_key")
-      ->where("user_id", "=", $user_id)
+      ->where("user_id", "=", identity::active_user()->id)
+      ->find();
+    if ($key->loaded()) {
+      $key->delete();
+    }
+    return rest::access_key();
+  }
+
+  static function access_key() {
+    $key = ORM::factory("user_access_key")
+      ->where("user_id", "=", identity::active_user()->id)
       ->find();
 
     if (!$key->loaded()) {
-      $key->user_id = $user_id;
+      $key->user_id = identity::active_user()->id;
       $key->access_key = md5(md5(uniqid(mt_rand(), true) . access::private_key()));
       $key->save();
     }
-    return $key;
+
+    return $key->access_key;
   }
 
   /**
@@ -129,9 +169,9 @@ class rest_Core {
       foreach (glob(MODPATH . "{$module->name}/helpers/*_rest.php") as $filename) {
         $class = str_replace(".php", "", basename($filename));
         if (method_exists($class, "relationships")) {
-          $results = array_merge(
-            $results,
-            call_user_func(array($class, "relationships"), $resource_type, $resource));
+          if ($tmp = call_user_func(array($class, "relationships"), $resource_type, $resource)) {
+            $results = array_merge($results, $tmp);
+          }
         }
       }
     }

@@ -22,75 +22,15 @@ class Kohana_Exception extends Kohana_Exception_Core {
    * Dump out the full stack trace as part of the text representation of the exception.
    */
   public static function text($e) {
-    return sprintf(
-      "%s [ %s ]: %s\n%s [ %s ]\n%s",
-      get_class($e), $e->getCode(), strip_tags($e->getMessage()),
-      $e->getFile(), $e->getLine(),
-      $e->getTraceAsString());
-  }
-
-  public static function handle(Exception $e) {
-    if ($e instanceof ORM_Validation_Exception) {
-      Kohana_Log::add("error", "Validation errors: " . print_r($e->validation->errors(), 1));
-    }
-    try {
-      $user = identity::active_user();
-      $try_themed_view = $user && !$user->admin;
-    } catch (Exception $e2) {
-      $try_themed_view = false;
-    }
-
-    if ($try_themed_view) {
-      try {
-        return self::_show_themed_error_page($e);
-      } catch (Exception $e3) {
-        Kohana_Log::add("error", "Exception in exception handling code: " . self::text($e3));
-        return parent::handle($e);
-      }
-    } else {
-      return parent::handle($e);
-    }
-  }
-
-  /**
-   * Shows a themed error page.
-   * @see Kohana_Exception::handle
-   */
-  private static function _show_themed_error_page(Exception $e) {
-    // Create a text version of the exception
-    $error = Kohana_Exception::text($e);
-    
-    // Add this exception to the log
-    Kohana_Log::add('error', $error);
-
-    // Manually save logs after exceptions
-    Kohana_Log::save();
-
-    if (!headers_sent()) {
-      if ($e instanceof Kohana_Exception) {
-        $e->sendHeaders();
-      } else {
-        header("HTTP/1.1 500 Internal Server Error");
-      }
-    }
-
-    $view = new Theme_View("page.html", "other", "error");
     if ($e instanceof Kohana_404_Exception) {
-      $view->page_title = t("Dang...  Page not found!");
-      $view->content = new View("error_404.html");
-      $user = identity::active_user();
-      $view->content->is_guest = $user && $user->guest;
-      if ($view->content->is_guest) {
-        $view->content->login_form = new View("login_ajax.html");
-        $view->content->login_form->form = auth::get_login_form("login/auth_html");
-        // Avoid anti-phishing protection by passing the url as session variable.
-        Session::instance()->set("continue_url", url::current(true));
-      }
+      return "File not found: " . Router::$complete_uri;
     } else {
-      $view->page_title = t("Dang...  Something went wrong!");
-      $view->content = new View("error.html");
+      return sprintf(
+        "%s [ %s ]: %s\n%s [ %s ]\n%s",
+        get_class($e), $e->getCode(), strip_tags($e->getMessage()),
+        $e->getFile(), $e->getLine(),
+        $e->getTraceAsString());
     }
-    print $view;
   }
 
   /**
@@ -105,16 +45,21 @@ class Kohana_Exception extends Kohana_Exception_Core {
    * data, such as session ids and passwords / hashes.
    */
   public static function safe_dump($value, $key, $length=128, $max_level=5) {
-    return parent::dump(self::_sanitize_for_dump($value, $key), $length, $max_level);
+    return parent::dump(self::_sanitize_for_dump($value, $key, $max_level), $length, $max_level);
   }
 
   /**
    * Elides sensitive data which shouldn't be echoed to the client,
    * such as passwords, and other secrets.
    */
-  /* Visible for testing*/ static function _sanitize_for_dump($value, $key=null) {
+  /* Visible for testing*/ static function _sanitize_for_dump($value, $key=null, $max_level) {
     // Better elide too much than letting something through.
     // Note: unanchored match is intended.
+    if (!$max_level) {
+      // Too much recursion; give up.  We gave it our best shot.
+      return $value;
+    }
+
     $sensitive_info_pattern =
       '/(password|pass|email|hash|private_key|session_id|session|g3sid|csrf|secret)/i';
     if (preg_match($sensitive_info_pattern, $key) ||
@@ -127,7 +72,7 @@ class Kohana_Exception extends Kohana_Exception_Core {
       } else if ($value instanceof User_Model) {
         return get_class($value) . ' object for "' . $value->name . '" - details omitted for display';
       }
-      return self::_sanitize_for_dump((array) $value, $key);
+      return self::_sanitize_for_dump((array) $value, $key, $max_level - 1);
     } else if (is_array($value)) {
       $result = array();
       foreach ($value as $k => $v) {
@@ -142,7 +87,7 @@ class Kohana_Exception extends Kohana_Exception_Core {
         if (is_object($v)) {
           $key_for_display .= ' (type: ' . get_class($v) . ')';
         }
-        $result[$key_for_display] = self::_sanitize_for_dump($v, $actual_key);
+        $result[$key_for_display] = self::_sanitize_for_dump($v, $actual_key, $max_level - 1);
       }
     } else {
       $result = $value;

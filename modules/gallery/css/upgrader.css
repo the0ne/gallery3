@@ -9,16 +9,15 @@ h1 {
 }
 
 div#outer {
-  width: 650px;
-  background: white;
+  background: #fff;
   border: 1px solid #999;
   margin: 0 auto;
-  padding: -10px;
+  width: 650px;
 }
 
 div#inner {
-  padding: 0 1em 0 1em;
-  margin: 0px;
+  margin: 0;
+  padding: 0 1em;
 }
 
 div#footer {
@@ -57,6 +56,10 @@ tr.upgradeable td {
 
 tr.upgradeable td.gallery {
   color: #00d;
+}
+
+tr.failed td {
+  color: red;
 }
 
 p {
@@ -121,10 +124,26 @@ div#dialog div {
   opacity: 0.5;
 }
 
+.failed {
+  color: red;
+}
+
 pre {
   display: inline;
   margin: 0px;
   padding: 0px;
+}
+
+div#upgrade_button {
+  margin-bottom: 20px;
+}
+
+div#welcome_message {
+  margin-left: 30px;
+}
+
+#logo {
+  margin-left: 14px;
 }
 
 .rtl {
@@ -153,4 +172,12 @@ pre {
 
 .rtl div#dialog a.close {
   float: left;
+}
+
+.rtl div#welcome_message {
+  padding-right: 30px;
+}
+
+.rtl #logo {
+  padding-right: 12px;
 }

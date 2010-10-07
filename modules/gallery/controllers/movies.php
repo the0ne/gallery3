@@ -41,7 +41,7 @@ class Movies_Controller extends Items_Controller {
     $template->set_global("item", $movie);
     $template->set_global("children", array());
     $template->set_global("children_count", 0);
-    $template->set_global("parents", $movie->parents());
+    $template->set_global("parents", $movie->parents()->as_array());
     $template->set_global("next_item", $next_item);
     $template->set_global("previous_item", $previous_item);
     $template->set_global("sibling_count", $movie->parent()->viewable()->children_count($where));
@@ -87,13 +87,13 @@ class Movies_Controller extends Items_Controller {
 
       if ($form->from_id->value == $movie->id) {
         // Use the new url; it might have changed.
-        print json_encode(array("result" => "success", "location" => $movie->url()));
+        json::reply(array("result" => "success", "location" => $movie->url()));
       } else {
         // Stay on the same page
-        print json_encode(array("result" => "success"));
+        json::reply(array("result" => "success"));
       }
     } else {
-      print json_encode(array("result" => "error", "form" => (string) $form));
+      json::reply(array("result" => "error", "html" => (string) $form));
     }
   }
 

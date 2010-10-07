@@ -54,9 +54,9 @@ class Admin_Users_Controller extends Admin_Controller {
       $user->save();
       module::event("user_add_form_admin_completed", $user, $form);
       message::success(t("Created user %user_name", array("user_name" => $user->name)));
-      print json_encode(array("result" => "success"));
+      json::reply(array("result" => "success"));
     } else {
-      print json_encode(array("result" => "error", "form" => (string) $form));
+      print json::reply(array("result" => "error", "html" => (string)$form));
     }
   }
 
@@ -81,13 +81,13 @@ class Admin_Users_Controller extends Admin_Controller {
       $name = $user->name;
       $user->delete();
     } else {
-      print json_encode(array("result" => "error", "form" => (string) $form));
+      json::reply(array("result" => "error", "html" => (string)$form));
     }
 
     $message = t("Deleted user %user_name", array("user_name" => $name));
     log::success("user", $message);
     message::success($message);
-    print json_encode(array("result" => "success"));
+    json::reply(array("result" => "success"));
   }
 
   public function delete_user_form($id) {
@@ -95,7 +95,10 @@ class Admin_Users_Controller extends Admin_Controller {
     if (empty($user)) {
       throw new Kohana_404_Exception();
     }
-    print $this->_get_user_delete_form_admin($user);
+    $v = new View("admin_users_delete_user.html");
+    $v->user = $user;
+    $v->form = $this->_get_user_delete_form_admin($user);
+    print $v;
   }
 
   public function edit_user($id) {
@@ -134,9 +137,9 @@ class Admin_Users_Controller extends Admin_Controller {
       $user->save();
       module::event("user_edit_form_admin_completed", $user, $form);
       message::success(t("Changed user %user_name", array("user_name" => $user->name)));
-      print json_encode(array("result" => "success"));
+      json::reply(array("result" => "success"));
     } else {
-      print json_encode(array("result" => "error", "form" => (string) $form));
+      json::reply(array("result" => "error", "html" => (string) $form));
     }
   }
 
@@ -192,9 +195,9 @@ class Admin_Users_Controller extends Admin_Controller {
       $group->save();
       message::success(
         t("Created group %group_name", array("group_name" => $group->name)));
-      print json_encode(array("result" => "success"));
+      json::reply(array("result" => "success"));
     } else {
-      print json_encode(array("result" => "error", "form" => (string) $form));
+      json::reply(array("result" => "error", "html" => (string)$form));
     }
   }
 
@@ -215,13 +218,13 @@ class Admin_Users_Controller extends Admin_Controller {
       $name = $group->name;
       $group->delete();
     } else {
-      print json_encode(array("result" => "error", "form" => (string) $form));
+      json::reply(array("result" => "error", "html" => (string) $form));
     }
 
     $message = t("Deleted group %group_name", array("group_name" => $name));
     log::success("group", $message);
     message::success($message);
-    print json_encode(array("result" => "success"));
+    json::reply(array("result" => "success"));
   }
 
   public function delete_group_form($id) {
@@ -258,11 +261,12 @@ class Admin_Users_Controller extends Admin_Controller {
       $group->save();
       message::success(
         t("Changed group %group_name", array("group_name" => $group->name)));
-      print json_encode(array("result" => "success"));
+      json::reply(array("result" => "success"));
     } else {
+      $group->reload();
       message::error(
         t("Failed to change group %group_name", array("group_name" => $group->name)));
-      print json_encode(array("result" => "error", "form" => (string) $form));
+      json::reply(array("result" => "error", "html" => (string) $form));
     }
   }
 
@@ -281,7 +285,9 @@ class Admin_Users_Controller extends Admin_Controller {
       "admin/users/edit_user/$user->id", "", "post", array("id" => "g-edit-user-form"));
     $group = $form->group("edit_user")->label(t("Edit user"));
     $group->input("name")->label(t("Username"))->id("g-username")->value($user->name)
-      ->error_messages("conflict", t("There is already a user with that username"));
+      ->error_messages("required", t("A name is required"))
+      ->error_messages("conflict", t("There is already a user with that username"))
+      ->error_messages("length", t("This name is too long"));
     $group->input("full_name")->label(t("Full name"))->id("g-fullname")->value($user->full_name)
       ->error_messages("length", t("This name is too long"));
     $group->password("password")->label(t("Password"))->id("g-password")
@@ -307,7 +313,7 @@ class Admin_Users_Controller extends Admin_Controller {
     }
 
     module::event("user_edit_form_admin", $user, $form);
-    $group->submit("")->value(t("Modify User"));
+    $group->submit("")->value(t("Modify user"));
     return $form;
   }
 
@@ -352,7 +358,7 @@ class Admin_Users_Controller extends Admin_Controller {
     $locales = array_merge(array("" => t("« none »")), $locales);
     $selected_locale = ($user && $user->locale) ? $user->locale : "";
     $form->dropdown("locale")
-      ->label(t("Language Preference"))
+      ->label(t("Language preference"))
       ->options($locales)
       ->selected($selected_locale);
   }
@@ -361,8 +367,8 @@ class Admin_Users_Controller extends Admin_Controller {
     $form = new Forge("admin/users/delete_user/$user->id", "", "post",
                       array("id" => "g-delete-user-form"));
     $group = $form->group("delete_user")->label(
-      t("Are you sure you want to delete user %name?", array("name" => $user->name)));
-    $group->submit("")->value(t("Delete user %name", array("name" => $user->name)));
+      t("Delete user %name?", array("name" => $user->display_name())));
+    $group->submit("")->value(t("Delete"));
     return $form;
   }
 
@@ -370,9 +376,13 @@ class Admin_Users_Controller extends Admin_Controller {
   private function _get_group_edit_form_admin($group) {
     $form = new Forge("admin/users/edit_group/$group->id", "", "post", array("id" => "g-edit-group-form"));
     $form_group = $form->group("edit_group")->label(t("Edit group"));
-    $form_group->input("name")->label(t("Name"))->id("g-name")->value($group->name);
-    $form_group->inputs["name"]->error_messages(
-      "conflict", t("There is already a group with that name"));
+    $form_group->input("name")->label(t("Name"))->id("g-name")->value($group->name)
+      ->error_messages("required", t("A name is required"));
+    $form_group->inputs["name"]->error_messages("conflict", t("There is already a group with that name"))
+      ->error_messages("required", t("You must enter a group name"))
+      ->error_messages("length",
+                       t("The group name must be less than %max_length characters",
+                         array("max_length" => 255)));
     $form_group->submit("")->value(t("Save"));
     return $form;
   }
@@ -381,8 +391,8 @@ class Admin_Users_Controller extends Admin_Controller {
     $form = new Forge("admin/users/add_group", "", "post", array("id" => "g-add-group-form"));
     $form_group = $form->group("add_group")->label(t("Add group"));
     $form_group->input("name")->label(t("Name"))->id("g-name");
-    $form_group->inputs["name"]->error_messages(
-      "conflict", t("There is already a group with that name"));
+    $form_group->inputs["name"]->error_messages("conflict", t("There is already a group with that name"))
+      ->error_messages("required", t("You must enter a group name"));
     $form_group->submit("")->value(t("Add group"));
     return $form;
   }

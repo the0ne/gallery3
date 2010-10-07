@@ -48,6 +48,13 @@ class Admin_Maintenance_Controller extends Admin_Controller {
     $view->content->finished_tasks = ORM::factory("task")
       ->where("done", "=", 1)->order_by("updated", "DESC")->find_all();
     print $view;
+
+    // Do some maintenance while we're in here
+    db::build()
+      ->delete("caches")
+      ->where("expiration", "<>", 0)
+      ->where("expiration", "<=", time())
+      ->execute();
   }
 
   /**
@@ -211,19 +218,25 @@ class Admin_Maintenance_Controller extends Admin_Controller {
         break;
       }
       // Using sprintf("%F") to avoid comma as decimal separator.
-      print json_encode(array("result" => "success",
-                              "task" => array(
-                                "percent_complete" => sprintf("%F", $task->percent_complete),
-                                "status" => (string) $task->status,
-                                "done" => (bool) $task->done),
-                              "location" => url::site("admin/maintenance")));
+      json::reply(array("result" => "success",
+                        "task" => array(
+                          "percent_complete" => sprintf("%F", $task->percent_complete),
+                          "status" => (string) $task->status,
+                          "done" => (bool) $task->done),
+                        "location" => url::site("admin/maintenance")));
 
     } else {
-      print json_encode(array("result" => "in_progress",
-                              "task" => array(
-                                "percent_complete" => sprintf("%F", $task->percent_complete),
-                                "status" => (string) $task->status,
-                                "done" => (bool) $task->done)));
+      json::reply(array("result" => "in_progress",
+                        "task" => array(
+                          "percent_complete" => sprintf("%F", $task->percent_complete),
+                          "status" => (string) $task->status,
+                          "done" => (bool) $task->done)));
     }
+  }
+
+  public function maintenance_mode($value) {
+    access::verify_csrf();
+    module::set_var("gallery", "maintenance_mode", $value);
+    url::redirect("admin/maintenance");
   }
 }

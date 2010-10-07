@@ -34,53 +34,82 @@ class Rest_Controller extends Controller {
 
     auth::login($user);
 
-    $key = rest::get_access_key($user->id);
-    rest::reply($key->access_key);
+    rest::reply(rest::access_key());
+  }
+
+  public function reset_api_key_confirm() {
+    $form = new Forge("rest/reset_api_key", "", "post", array("id" => "g-reset-api-key"));
+    $group = $form->group("confirm_reset")->label(t("Confirm resetting your REST API key"));
+    $group->submit("")->value(t("Reset"));
+    $v = new View("reset_api_key_confirm.html");
+    $v->form = $form;
+    print $v;
+  }
+
+  public function reset_api_key() {
+    access::verify_csrf();
+    rest::reset_access_key();
+    message::success(t("Your REST API key has been reset."));
+    json::reply(array("result" => "success"));
   }
 
   public function __call($function, $args) {
-    $input = Input::instance();
-    $request = new stdClass();
-    switch ($method = strtolower($input->server("REQUEST_METHOD"))) {
-    case "get":
-      $request->params = (object) $input->get();
-      break;
-
-    case "post":
-      $request->params = (object) $input->post();
-      if (isset($_FILES["file"])) {
-        $request->file = upload::save("file");
-      }
-      break;
-    }
-
-    if (isset($request->params->entity)) {
-      $request->params->entity = json_decode($request->params->entity);
-    }
-    if (isset($request->params->members)) {
-      $request->params->members = json_decode($request->params->members);
-    }
-
-    $request->method = strtolower($input->server("HTTP_X_GALLERY_REQUEST_METHOD", $method));
-    $request->access_key = $input->server("HTTP_X_GALLERY_REQUEST_KEY");
-    $request->url = url::abs_current(true);
-
-    rest::set_active_user($request->access_key);
-
-    $handler_class = "{$function}_rest";
-    $handler_method = $request->method;
-
-    if (!method_exists($handler_class, $handler_method)) {
-      throw new Rest_Exception("Bad Request", 400);
-    }
-
     try {
-      rest::reply(call_user_func(array($handler_class, $handler_method), $request));
-    } catch (ORM_Validation_Exception $e) {
-      foreach ($e->validation->errors() as $key => $value) {
-        $msgs[] = "$key: $value";
+      $input = Input::instance();
+      $request = new stdClass();
+
+      switch ($method = strtolower($input->server("REQUEST_METHOD"))) {
+      case "get":
+        $request->params = (object) $input->get();
+        break;
+
+      default:
+        $request->params = (object) $input->post();
+        if (isset($_FILES["file"])) {
+          $request->file = upload::save("file");
+        }
+        break;
       }
-      throw new Rest_Exception("Bad Request: " . join(", ", $msgs), 400);
+
+      if (isset($request->params->entity)) {
+        $request->params->entity = json_decode($request->params->entity);
+      }
+      if (isset($request->params->members)) {
+        $request->params->members = json_decode($request->params->members);
+      }
+
+      $request->method = strtolower($input->server("HTTP_X_GALLERY_REQUEST_METHOD", $method));
+      $request->access_key = $input->server("HTTP_X_GALLERY_REQUEST_KEY");
+
+      if (empty($request->access_key) && !empty($request->params->access_key)) {
+        $request->access_key = $request->params->access_key;
+      }
+
+      $request->url = url::abs_current(true);
+
+      rest::set_active_user($request->access_key);
+
+      $handler_class = "{$function}_rest";
+      $handler_method = $request->method;
+
+      if (!method_exists($handler_class, $handler_method)) {
+        throw new Rest_Exception("Bad Request", 400);
+      }
+
+      $response = call_user_func(array($handler_class, $handler_method), $request);
+      if ($handler_method == "post") {
+        // post methods must return a response containing a URI.
+        header("HTTP/1.1 201 Created");
+        header("Location: {$response['url']}");
+      }
+      rest::reply($response);
+    } catch (ORM_Validation_Exception $e) {
+      // Note: this is totally insufficient because it doesn't take into account localization.  We
+      // either need to map the result values to localized strings in the application code, or every
+      // client needs its own l10n string set.
+      throw new Rest_Exception("Bad Request", 400, $e->validation->errors());
+    } catch (Kohana_404_Exception $e) {
+      throw new Rest_Exception("Not Found", 404);
     }
   }
 }

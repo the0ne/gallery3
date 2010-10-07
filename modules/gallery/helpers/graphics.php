@@ -117,7 +117,18 @@ class graphics_Core {
   static function generate($item) {
     if ($item->is_album()) {
       if (!$cover = $item->album_cover()) {
-        // This album has no cover; there's nothing to generate.
+        // This album has no cover; there's nothing to generate.  Because of an old bug, it's
+        // possible that there's an album cover item id that points to an invalid item.  In that
+        // case, just null out the album cover item id.  It's not optimal to do that at this low
+        // level, but it's not trivial to find these cases quickly in an upgrade script and if we
+        // don't do this, the album may be permanently marked as "needs rebuilding"
+        //
+        // ref: http://sourceforge.net/apps/trac/gallery/ticket/1172
+        //      http://gallery.menalto.com/node/96926
+        if ($item->album_cover_item_id) {
+          $item->album_cover_item_id = null;
+          $item->save();
+        }
         return;
       }
       $input_file = $cover->file_path();
@@ -302,10 +313,10 @@ class graphics_Core {
       $toolkits->graphicsmagick->installed = false;
       $toolkits->graphicsmagick->error = t("GraphicsMagick requires the <b>exec</b> function");
     } else {
-      $graphics_path = module::get_var("gallery", "graphics_toolkit_path", null);
-
-      putenv("PATH=" . getenv("PATH") . (empty($graphics_path) ? "" : ":$graphics_path") .
-             ":/usr/local/bin:/opt/local/bin:/opt/bin");
+      gallery::set_path_env(
+        array(module::get_var("gallery", "graphics_toolkit_path"),
+              getenv("PATH"),
+              module::get_var("gallery", "extra_binary_paths")));
 
       // @todo: consider refactoring the two segments below into a loop since they are so
       // similar.
@@ -327,8 +338,7 @@ class graphics_Core {
         } else {
           $toolkits->imagemagick->installed = false;
           $toolkits->imagemagick->error =
-            t("ImageMagick is installed, but PHP's open_basedir restriction " .
-              "prevents Gallery from using it.");
+            t("ImageMagick is installed, but PHP's open_basedir restriction prevents Gallery from using it.");
         }
       } else {
         $toolkits->imagemagick->installed = false;
@@ -352,8 +362,7 @@ class graphics_Core {
         } else {
           $toolkits->graphicsmagick->installed = false;
           $toolkits->graphicsmagick->error =
-            t("GraphicsMagick is installed, but PHP's open_basedir restriction " .
-              "prevents Gallery from using it.");
+            t("GraphicsMagick is installed, but PHP's open_basedir restriction prevents Gallery from using it.");
         }
       } else {
         $toolkits->graphicsmagick->installed = false;

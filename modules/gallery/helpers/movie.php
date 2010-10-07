@@ -26,7 +26,7 @@
 class movie_Core {
   static function get_edit_form($movie) {
     $form = new Forge("movies/update/$movie->id", "", "post", array("id" => "g-edit-movie-form"));
-    $form->hidden("from_id");
+    $form->hidden("from_id")->value($movie->id);
     $group = $form->group("edit_item")->label(t("Edit Movie"));
     $group->input("title")->label(t("Title"))->value($movie->title)
       ->error_messages("required", t("You must provide a title"))
@@ -57,23 +57,6 @@ class movie_Core {
     return $form;
   }
 
-
-  static function getmoviesize($filename) {
-    $ffmpeg = self::find_ffmpeg();
-    if (empty($ffmpeg)) {
-      throw new Exception("@todo MISSING_FFMPEG");
-    }
-
-    $cmd = escapeshellcmd($ffmpeg) . " -i " . escapeshellarg($filename) . " 2>&1";
-    $result = `$cmd`;
-    if (preg_match("/Stream.*?Video:.*?(\d+)x(\d+)/", $result, $regs)) {
-      list ($width, $height) = array($regs[1], $regs[2]);
-    } else {
-      list ($width, $height) = array(0, 0);
-    }
-    return array($width, $height);
-  }
-
   static function extract_frame($input_file, $output_file) {
     $ffmpeg = self::find_ffmpeg();
     if (empty($ffmpeg)) {
@@ -101,11 +84,11 @@ class movie_Core {
   }
 
   static function find_ffmpeg() {
-    if (!$ffmpeg_path = module::get_var("gallery", "ffmpeg_path")) {
-      $graphics_path = module::get_var("gallery", "graphics_toolkit_path", null);
-
-      putenv("PATH=" . getenv("PATH") . (empty($graphics_path) ? "" : ":$graphics_path") .
-             ":/usr/local/bin:/opt/local/bin:/opt/bin");
+    if (!($ffmpeg_path = module::get_var("gallery", "ffmpeg_path")) || !file_exists($ffmpeg_path)) {
+      gallery::set_path_env(
+        array(module::get_var("gallery", "graphics_toolkit_path"),
+              getenv("PATH"),
+              module::get_var("gallery", "extra_binary_paths")));
       if (function_exists("exec")) {
         $ffmpeg_path = exec("which ffmpeg");
       }
@@ -114,4 +97,31 @@ class movie_Core {
     }
     return $ffmpeg_path;
   }
+
+
+  /**
+   * Return the width, height, mime_type and extension of the given movie file.
+   */
+  static function get_file_metadata($file_path) {
+    $ffmpeg = self::find_ffmpeg();
+    if (empty($ffmpeg)) {
+      throw new Exception("@todo MISSING_FFMPEG");
+    }
+
+    $cmd = escapeshellcmd($ffmpeg) . " -i " . escapeshellarg($file_path) . " 2>&1";
+    $result = `$cmd`;
+    if (preg_match("/Stream.*?Video:.*?(\d+)x(\d+)/", $result, $regs)) {
+      list ($width, $height) = array($regs[1], $regs[2]);
+    } else {
+      list ($width, $height) = array(0, 0);
+    }
+
+    $pi = pathinfo($file_path);
+    $extension = isset($pi["extension"]) ? $pi["extension"] : "flv"; // No extension?  Assume FLV.
+    $mime_type = in_array(strtolower($extension), array("mp4", "m4v")) ?
+      "video/mp4" : "video/x-flv";
+
+    return array($width, $height, $mime_type, $extension);
+  }
+
 }

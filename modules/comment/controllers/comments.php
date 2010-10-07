@@ -24,6 +24,9 @@ class Comments_Controller extends Controller {
   public function create($id) {
     $item = ORM::factory("item", $id);
     access::required("view", $item);
+    if (!comment::can_comment()) {
+      access::forbidden();
+    }
 
     $form = comment::get_add_form($item);
     try {
@@ -42,6 +45,7 @@ class Comments_Controller extends Controller {
         switch ($key) {
         case "guest_name":  $key = "name";  break;
         case "guest_email": $key = "email"; break;
+        case "guest_url":   $key = "url";   break;
         }
         $form->add_comment->inputs[$key]->add_error($error, 1);
       }
@@ -53,12 +57,12 @@ class Comments_Controller extends Controller {
       $view = new Theme_View("comment.html", "other", "comment-fragment");
       $view->comment = $comment;
 
-      print json_encode(
-        array("result" => "success",
-              "view" => (string) $view,
-              "form" => (string) comment::get_add_form($item)));
+      json::reply(array("result" => "success",
+                        "view" => (string)$view,
+                        "form" => (string)comment::get_add_form($item)));
     } else {
-      print json_encode(array("result" => "error", "form" => (string) $form));
+      $form = comment::prefill_add_form($form);
+      json::reply(array("result" => "error", "form" => (string)$form));
     }
   }
 
@@ -68,7 +72,10 @@ class Comments_Controller extends Controller {
   public function form_add($item_id) {
     $item = ORM::factory("item", $item_id);
     access::required("view", $item);
+    if (!comment::can_comment()) {
+      access::forbidden();
+    }
 
-    print comment::get_add_form($item);
+    print comment::prefill_add_form(comment::get_add_form($item));
   }
 }

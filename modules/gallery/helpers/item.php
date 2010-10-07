@@ -105,9 +105,15 @@ class item_Core {
 
     model_cache::clear();
     $parent->album_cover_item_id = $item->is_album() ? $item->album_cover_item_id : $item->id;
-    $parent->thumb_dirty = 1;
+    if ($item->thumb_dirty) {
+      $parent->thumb_dirty = 1;
+      graphics::generate($parent);
+    } else {
+      copy($item->thumb_path(), $parent->thumb_path());
+      $parent->thumb_width = $item->thumb_width;
+      $parent->thumb_height = $item->thumb_height;
+    }
     $parent->save();
-    graphics::generate($parent);
     $grand_parent = $parent->parent();
     if ($grand_parent && access::can("edit", $grand_parent) &&
         $grand_parent->album_cover_item_id == null)  {
@@ -136,7 +142,7 @@ class item_Core {
    */
   static function convert_filename_to_title($filename) {
     $title = strtr($filename, "_", " ");
-    $title = preg_replace("/\..*?$/", "", $title);
+    $title = preg_replace("/\..{3,4}$/", "", $title);
     $title = preg_replace("/ +/", " ", $title);
     return $title;
   }
@@ -158,10 +164,14 @@ class item_Core {
    */
   static function get_delete_form($item) {
     $page_type = Input::instance()->get("page_type");
+    $from_id = Input::instance()->get("from_id");
     $form = new Forge(
-      "quick/delete/$item->id?page_type=$page_type", "", "post", array("id" => "g-confirm-delete"));
+      "quick/delete/$item->id?page_type=$page_type&from_id=$from_id", "",
+      "post", array("id" => "g-confirm-delete"));
     $group = $form->group("confirm_delete")->label(t("Confirm Deletion"));
     $group->submit("")->value(t("Delete"));
+    $form->script("")
+      ->url(url::abs_file("modules/gallery/js/item_form_delete.js"));
     return $form;
   }
 
@@ -209,17 +219,14 @@ class item_Core {
 
   /**
    * Return a query to get a random Item_Model, with optional filters
-   *
-   * @param array   (optional) where tuple
    */
-  static function random_query($where=null) {
+  static function random_query() {
     // Pick a random number and find the item that's got nearest smaller number.
     // This approach works best when the random numbers in the system are roughly evenly
     // distributed so this is going to be more efficient with larger data sets.
     return ORM::factory("item")
       ->viewable()
       ->where("rand_key", "<", ((float)mt_rand()) / (float)mt_getrandmax())
-      ->merge_where($where)
       ->order_by("rand_key", "DESC");
   }
 }

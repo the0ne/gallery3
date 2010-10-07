@@ -28,8 +28,11 @@ class GalleryCodeFilterIterator extends FilterIterator {
   public function accept() {
     // Skip anything that we didn"t write
     $path_name = $this->getInnerIterator()->getPathName();
+    $file_name = $this->getInnerIterator()->getFileName();
     return !(
-      strpos($path_name, ".svn") ||
+      $file_name == "." ||
+      $file_name == ".." ||
+      strpos($path_name, DOCROOT . ".git") !== false ||
       strpos($path_name, DOCROOT . "test") !== false ||
       strpos($path_name, DOCROOT . "var") !== false ||
       strpos($path_name, MODPATH . "forge") !== false ||
@@ -40,7 +43,6 @@ class GalleryCodeFilterIterator extends FilterIterator {
       strpos($path_name, MODPATH . "unit_test") !== false ||
       strpos($path_name, MODPATH . "exif/lib") !== false ||
       strpos($path_name, MODPATH . "user/lib/PasswordHash") !== false ||
-      strpos($path_name, DOCROOT . "lib/swfupload") !== false ||
       strpos($path_name, SYSPATH) !== false ||
       strpos($path_name, MODPATH . "gallery/libraries/HTMLPurifier") !== false ||
       substr($path_name, -1, 1) == "~");

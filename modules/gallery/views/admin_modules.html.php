@@ -18,7 +18,7 @@
             height: 400,
             width: 500,
             position: "center",
-            title: <?= t("Confirm Module Activation")->for_js() ?>,
+            title: <?= t("Confirm module activation")->for_js() ?>,
             buttons: {
               <?= t("Continue")->for_js() ?>: function() {
                 $("form", this).submit();
@@ -52,7 +52,7 @@
       <table>
         <tr>
           <th> <?= t("Installed") ?> </th>
-          <th> <?= t("Name") ?> </th>
+          <th style="width: 8em"> <?= t("Name") ?> </th>
           <th> <?= t("Version") ?> </th>
           <th> <?= t("Description") ?> </th>
         </tr>

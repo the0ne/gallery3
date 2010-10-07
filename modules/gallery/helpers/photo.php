@@ -26,7 +26,7 @@
 class photo_Core {
   static function get_edit_form($photo) {
     $form = new Forge("photos/update/$photo->id", "", "post", array("id" => "g-edit-photo-form"));
-    $form->hidden("from_id");
+    $form->hidden("from_id")->value($photo->id);
     $group = $form->group("edit_item")->label(t("Edit Photo"));
     $group->input("title")->label(t("Title"))->value($photo->title)
       ->error_messages("required", t("You must provide a title"))
@@ -76,5 +76,17 @@ class photo_Core {
       $new_width = (int)$max * ($width / $height);
     }
     return sprintf($format, $new_width, $new_height);
+  }
+
+  /**
+   * Return the width, height, mime_type and extension of the given image file.
+   */
+  static function get_file_metadata($file_path) {
+    $image_info = getimagesize($file_path);
+    $width = $image_info[0];
+    $height = $image_info[1];
+    $mime_type = $image_info["mime"];
+    $extension = image_type_to_extension($image_info[2], false);
+    return array($width, $height, $mime_type, $extension);
   }
 }

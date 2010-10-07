@@ -41,6 +41,11 @@ class Item_Helper_Test extends Gallery_Unit_Test_Case {
       ORM::factory("item")->viewable()->where("id", "=", $item->id)->count_all());
   }
 
+  public function convert_filename_to_title_test() {
+    $this->assert_equal("foo", item::convert_filename_to_title("foo.jpg"));
+    $this->assert_equal("foo.bar", item::convert_filename_to_title("foo.bar.jpg"));
+  }
+
   public function convert_filename_to_slug_test() {
     $this->assert_equal("foo", item::convert_filename_to_slug("{[foo]}"));
     $this->assert_equal("foo-bar", item::convert_filename_to_slug("{[foo!@#!$@#^$@($!(@bar]}"));
@@ -53,7 +58,6 @@ class Item_Helper_Test extends Gallery_Unit_Test_Case {
     item::move($photo, $dst_album);
     $this->assert_same($dst_album->id, $photo->parent_id);
   }
-
 
   public function move_updates_album_covers_test() {
     // 2 photos in the source album
@@ -105,5 +109,20 @@ class Item_Helper_Test extends Gallery_Unit_Test_Case {
     $this->assert_same(item::root()->id, $photo2->parent_id);
     $this->assert_not_same("{$rand}.jpg", $photo2->name);
     $this->assert_not_same($rand, $photo2->slug);
+  }
+
+  public function delete_cover_photo_picks_new_album_cover_test() {
+    $parent = test::random_album();
+    $album = test::random_album($parent);
+    $photo1 = test::random_photo($album);
+    // At this point, $photo1 is the album cover.  We verify this in
+    // Item_Model_Test::first_photo_becomes_album_cover
+    $photo2 = test::random_photo($album);
+    $photo1->delete();
+    $album->reload();
+    $parent->reload();
+
+    $this->assert_same($photo2->id, $album->album_cover_item_id);
+    $this->assert_same($photo2->id, $parent->album_cover_item_id);
   }
 }

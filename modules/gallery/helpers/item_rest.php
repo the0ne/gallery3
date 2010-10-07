@@ -127,17 +127,24 @@ class item_rest_Core {
       }
     }
 
-    $weight = 0;
-    if (isset($request->params->members)) {
+    // Replace the data file, if required
+    if (($item->is_photo() || $item->is_movie()) && isset($request->file)) {
+      $item->set_data_file($request->file);
+    }
+
+    $item->save();
+
+    if (isset($request->params->members) && $item->sort_column == "weight") {
+      $weight = 0;
       foreach ($request->params->members as $url) {
         $child = rest::resolve($url);
         if ($child->parent_id == $item->id && $child->weight != $weight) {
-          $child->weight = $weight++;
+          $child->weight = $weight;
           $child->save();
         }
+        $weight++;
       }
     }
-    $item->save();
   }
 
   static function post($request) {
@@ -151,7 +158,7 @@ class item_rest_Core {
       $item->type = "album";
       $item->parent_id = $parent->id;
       $item->name = $entity->name;
-      $item->title = isset($entity->title) ? $entity->title : $name;
+      $item->title = isset($entity->title) ? $entity->title : $entity->name;
       $item->description = isset($entity->description) ? $entity->description : null;
       $item->slug = isset($entity->slug) ? $entity->slug : null;
       $item->save();
@@ -159,18 +166,23 @@ class item_rest_Core {
 
     case "photo":
     case "movie":
-      $item->type = $entity->type;
-      $item->parent_id = $parent->id;
-      $item->set_data_file($request->file);
-      $item->name = $entity->name;
-      $item->title = isset($entity->title) ? $entity->title : $entity->name;
-      $item->description = isset($entity->description) ? $entity->description : null;
-      $item->slug = isset($entity->slug) ? $entity->slug : null;
-      $item->save();
-      break;
+      if (empty($request->file)) {
+        throw new Rest_Exception(
+          "Bad Request", 400, array("errors" => array("file" => t("Upload failed"))));
+      }
+    $item->type = $entity->type;
+    $item->parent_id = $parent->id;
+    $item->set_data_file($request->file);
+    $item->name = $entity->name;
+    $item->title = isset($entity->title) ? $entity->title : $entity->name;
+    $item->description = isset($entity->description) ? $entity->description : null;
+    $item->slug = isset($entity->slug) ? $entity->slug : null;
+    $item->save();
+    break;
 
     default:
-      throw new Rest_Exception("Invalid type: $entity->type", 400);
+      throw new Rest_Exception(
+        "Bad Request", 400, array("errors" => array("type" => "invalid")));
     }
 
     return array("url" => rest::url("item", $item));

@@ -1,17 +1,27 @@
 <?php defined("SYSPATH") or die("No direct script access.") ?>
-  <a href="<?= url::site("form/add/comments/{$item->id}") ?>#comment-form" id="g-add-comment"
+<? if (comment::can_comment()): ?>
+<a href="<?= url::site("form/add/comments/{$item->id}") ?>#comment-form" id="g-add-comment"
    class="g-button ui-corner-all ui-icon-left ui-state-default">
   <span class="ui-icon ui-icon-comment"></span>
   <?= t("Add a comment") ?>
 </a>
+<? endif ?>
+
 <div id="g-comment-detail">
   <? if (!$comments->count()): ?>
   <p class="g-no-comments">
+    <? if (comment::can_comment()): ?>
     <?= t("No comments yet. Be the first to <a %attrs>comment</a>!",
           array("attrs" => html::mark_clean("href=\"" . url::site("form/add/comments/{$item->id}") . "\" class=\"showCommentForm\""))) ?>
-  </p>
-  <ul><li class="g-no-comments">&nbsp;</li></ul>
+    <? else: ?>
+    <?= t("No comments yet.") ?>
+    <? endif ?>
+   </p>
+  <ul>
+    <li class="g-no-comments">&nbsp;</li>
+  </ul>
   <? endif ?>
+
   <? if ($comments->count()): ?>
   <ul>
     <? foreach ($comments as $comment): ?>
@@ -26,11 +36,11 @@
         </a>
         <? if ($comment->author()->guest): ?>
         <?= t('on %date %name said',
-              array("date" => date("Y-M-d H:i:s", $comment->created),
-                    "name" => html::clean($comment->author_name()))); ?>
+            array("date" => gallery::date_time($comment->created),
+                  "name" => html::clean($comment->author_name()))); ?>
         <? else: ?>
         <?= t('on %date <a href="%url">%name</a> said',
-              array("date" => date("Y-M-d H:i:s", $comment->created),
+              array("date" => gallery::date_time($comment->created),
                     "url" => user_profile::url($comment->author_id),
                     "name" => html::clean($comment->author_name()))); ?>
         <? endif ?>

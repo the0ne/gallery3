@@ -36,9 +36,10 @@ class tag_rss_Core {
       }
 
       $feed = new stdClass();
-      $feed->children = $tag->items($limit, $offset, "photo");
+      $feed->items = $tag->items($limit, $offset, "photo");
       $feed->max_pages = ceil($tag->count / $limit);
-      $feed->title = $tag->name;
+      $feed->title = t("%site_title - %tag_name",
+                       array("site_title" => item::root()->title, "tag_name" => $tag->name));
       $feed->description = t("Photos related to %tag_name", array("tag_name" => $tag->name));
 
       return $feed;

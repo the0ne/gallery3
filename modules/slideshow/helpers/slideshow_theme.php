@@ -19,8 +19,8 @@
  */
 class slideshow_theme_Core {
   static function page_bottom($theme) {
-    $proto = (empty($_SERVER["HTTPS"]) || $_SERVER["HTTPS"] === "off") ? "http" : "https";
-    return "<script src=\"$proto://apps.cooliris.com/slideshow/go.js\" " .
+    $proto = request::protocol();
+    return "<script src=\"$proto://e.cooliris.com/slideshow/v/37732/go.js\" " .
       "type=\"text/javascript\"></script>";
   }
 }

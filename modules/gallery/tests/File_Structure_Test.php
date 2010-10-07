@@ -23,13 +23,18 @@ class File_Structure_Test extends Gallery_Unit_Test_Case {
   public function no_trailing_closing_php_tag_test() {
     $dir = new GalleryCodeFilterIterator(
       new RecursiveIteratorIterator(new RecursiveDirectoryIterator(DOCROOT)));
+    $count = 0;
     foreach ($dir as $file) {
+      $count++;
       if (!preg_match("|\.html\.php$|", $file->getPathname())) {
         $this->assert_false(
           preg_match('/\?\>\s*$/', file_get_contents($file)),
           "{$file->getPathname()} ends in ?>");
       }
     }
+
+    $this->assert_true($count > 500, "We should have analyzed at least this 500 files");
+    $this->assert_true($count < 1000, "We shouldn't be shipping 1000 files!");
   }
 
   public function view_files_correct_suffix_test() {
@@ -42,8 +47,8 @@ class File_Structure_Test extends Gallery_Unit_Test_Case {
 
       if (strpos($file, "views")) {
         $this->assert_true(
-          preg_match("#/views/.*?(\.html|mrss|txt)\.php$#", $file->getPathname()),
-          "{$file->getPathname()} should end in .{html,mrss,txt}.php");
+          preg_match("#/views/.*?\.(html|mrss|txt|json)\.php$#", $file->getPathname()),
+          "{$file->getPathname()} should end in .{html,mrss,txt,json}.php");
       }
     }
   }

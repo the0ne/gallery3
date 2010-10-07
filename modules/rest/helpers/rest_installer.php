@@ -28,14 +28,22 @@ class rest_installer {
                 UNIQUE KEY(`access_key`),
                 UNIQUE KEY(`user_id`))
               DEFAULT CHARSET=utf8;");
-    module::set_version("rest", 2);
+    module::set_var("rest", "allow_guest_access", false);
+    module::set_version("rest", 3);
   }
 
   static function upgrade($version) {
     $db = Database::instance();
     if ($version == 1) {
-      $db->query("RENAME TABLE {user_access_tokens} TO {user_access_keys}");
+      if (in_array("user_access_tokens", Database::instance()->list_tables())) {
+        $db->query("RENAME TABLE {user_access_tokens} TO {user_access_keys}");
+      }
       module::set_version("rest", $version = 2);
+    }
+
+    if ($version == 2) {
+      module::set_var("rest", "allow_guest_access", false);
+      module::set_version("rest", $version = 3);
     }
   }
 

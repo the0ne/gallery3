@@ -58,7 +58,7 @@ class album_Core {
   static function get_edit_form($parent) {
     $form = new Forge(
       "albums/update/{$parent->id}", "", "post", array("id" => "g-edit-album-form"));
-    $form->hidden("from_id");
+    $form->hidden("from_id")->value($parent->id);
     $group = $form->group("edit_item")->label(t("Edit Album"));
 
     $group->input("title")->label(t("Title"))->value($parent->title)
@@ -114,6 +114,7 @@ class album_Core {
                  "captured" => t("Date captured"),
                  "created" => t("Date uploaded"),
                  "title" => t("Title"),
+                 "name" => t("File name"),
                  "updated" => t("Date modified"),
                  "view_count" => t("Number of views"),
                  "rand_key" => t("Random"));

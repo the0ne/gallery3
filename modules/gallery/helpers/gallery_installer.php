@@ -23,7 +23,8 @@ class gallery_installer {
     $db->query("CREATE TABLE {access_caches} (
                  `id` int(9) NOT NULL auto_increment,
                  `item_id` int(9),
-                 PRIMARY KEY (`id`))
+                 PRIMARY KEY (`id`),
+                 KEY (`item_id`))
                DEFAULT CHARSET=utf8;");
 
     $db->query("CREATE TABLE {access_intents} (
@@ -114,7 +115,8 @@ class gallery_installer {
                  KEY `parent_id` (`parent_id`),
                  KEY `type` (`type`),
                  KEY `random` (`rand_key`),
-                 KEY `weight` (`weight` DESC))
+                 KEY `weight` (`weight` DESC),
+                 KEY `left_ptr` (`left_ptr`))
                DEFAULT CHARSET=utf8;");
 
     $db->query("CREATE TABLE {logs} (
@@ -144,8 +146,10 @@ class gallery_installer {
                  `active` BOOLEAN default 0,
                  `name` varchar(64) default NULL,
                  `version` int(9) default NULL,
+                 `weight` int(9) default NULL,
                  PRIMARY KEY (`id`),
-                 UNIQUE KEY(`name`))
+                 UNIQUE KEY(`name`),
+                 KEY (`weight`))
                DEFAULT CHARSET=utf8;");
 
     $db->query("CREATE TABLE {outgoing_translations} (
@@ -295,7 +299,17 @@ class gallery_installer {
     module::set_var("gallery", "credits", (string) $powered_by_string);
     module::set_var("gallery", "simultaneous_upload_limit", 5);
     module::set_var("gallery", "admin_area_timeout", 90 * 60);
-    module::set_version("gallery", 30);
+    module::set_var("gallery", "maintenance_mode", 0);
+    module::set_var("gallery", "visible_title_length", 15);
+    module::set_var("gallery", "favicon_url", "lib/images/favicon.ico");
+    module::set_var("gallery", "email_from", "");
+    module::set_var("gallery", "email_reply_to", "");
+    module::set_var("gallery", "email_line_length", 70);
+    module::set_var("gallery", "email_header_separator", serialize("\n"));
+    module::set_var("gallery", "show_user_profiles_to", "registered_users");
+    module::set_var("gallery", "extra_binary_paths", "/usr/local/bin:/opt/local/bin:/opt/bin");
+
+    module::set_version("gallery", 41);
   }
 
   static function upgrade($version) {
@@ -536,7 +550,9 @@ class gallery_installer {
     }
 
     if ($version == 26) {
-      $db->query("RENAME TABLE {failed_logins} TO {failed_auths}");
+      if (in_array("failed_logins", Database::instance()->list_tables())) {
+        $db->query("RENAME TABLE {failed_logins} TO {failed_auths}");
+      }
       module::set_version("gallery", $version = 27);
     }
 
@@ -554,7 +570,78 @@ class gallery_installer {
     if ($version == 29) {
       $db->query("ALTER TABLE {caches} ADD KEY (`key`);");
       module::set_version("gallery", $version = 30);
-    }                
+    }
+
+    if ($version == 30) {
+      module::set_var("gallery", "maintenance_mode", 0);
+      module::set_version("gallery", $version = 31);
+    }
+
+    if ($version == 31) {
+      $db->query("ALTER TABLE {modules} ADD COLUMN `weight` int(9) DEFAULT NULL");
+      $db->query("ALTER TABLE {modules} ADD KEY (`weight`)");
+      db::update("modules")
+        ->set("weight", new Database_Expression("`id`"))
+        ->execute();
+      module::set_version("gallery", $version = 32);
+    }
+
+    if ($version == 32) {
+      $db->query("ALTER TABLE {items} ADD KEY (`left_ptr`)");
+      module::set_version("gallery", $version = 33);
+    }
+
+    if ($version == 33) {
+      $db->query("ALTER TABLE {access_caches} ADD KEY (`item_id`)");
+      module::set_version("gallery", $version = 34);
+    }
+
+    if ($version == 34) {
+      module::set_var("gallery", "visible_title_length", 15);
+      module::set_version("gallery", $version = 35);
+    }
+
+    if ($version == 35) {
+      module::set_var("gallery", "favicon_url", "lib/images/favicon.ico");
+      module::set_version("gallery", $version = 36);
+    }
+
+    if ($version == 36) {
+      module::set_var("gallery", "email_from", "admin@example.com");
+      module::set_var("gallery", "email_reply_to", "public@example.com");
+      module::set_var("gallery", "email_line_length", 70);
+      module::set_var("gallery", "email_header_separator", serialize("\n"));
+      module::set_version("gallery", $version = 37);
+    }
+
+    // Changed our minds and decided that the initial value should be empty
+    // But don't just reset it blindly, only do it if the value is version 37 default
+    if ($version == 37) {
+      $email = module::get_var("gallery", "email_from", "");
+      if ($email == "admin@example.com") {
+        module::set_var("gallery", "email_from", "");
+      }
+      $email = module::get_var("gallery", "email_reply_to", "");
+      if ($email == "admin@example.com") {
+        module::set_var("gallery", "email_reply_to", "");
+      }
+      module::set_version("gallery", $version = 38);
+    }
+
+    if ($version == 38) {
+      module::set_var("gallery", "show_user_profiles_to", "registered_users");
+      module::set_version("gallery", $version = 39);
+    }
+
+    if ($version == 39) {
+      module::set_var("gallery", "extra_binary_paths", "/usr/local/bin:/opt/local/bin:/opt/bin");
+      module::set_version("gallery", $version = 40);
+    }
+
+    if ($version == 40) {
+      module::clear_var("gallery", "_cache");
+      module::set_version("gallery", $version = 41);
+    }
   }
 
   static function uninstall() {

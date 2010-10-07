@@ -92,6 +92,7 @@ class locales_Core {
     $l["ko_KR"] = "한국어";                    // Korean
     $l["lt_LT"] = "Lietuvių";                 // Lithuanian
     $l["lv_LV"] = "Latviešu";                 // Latvian
+    $l["mk_MK"] = "Македонски јазик";         // Macedonian
     $l["nl_NL"] = "Nederlands";               // Dutch
     $l["no_NO"] = "Norsk bokmål";             // Norwegian
     $l["pl_PL"] = "Polski";                   // Polish
@@ -103,6 +104,7 @@ class locales_Core {
     $l["sl_SI"] = "Slovenščina";              // Slovenian
     $l["sr_CS"] = "Srpski";                   // Serbian
     $l["sv_SE"] = "Svenska";                  // Swedish
+    $l["tn_ZA"] = "Setswana";                 // Setswana
     $l["tr_TR"] = "Türkçe";                   // Turkish
     $l["uk_UA"] = "українська";         // Ukrainian
     $l["vi_VN"] = "Tiếng Việt";               // Vietnamese

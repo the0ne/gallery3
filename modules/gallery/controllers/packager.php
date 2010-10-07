@@ -59,12 +59,8 @@ class Packager_Controller extends Controller {
     // numbers, keeping our install.sql file more stable.
     srand(0);
 
-    gallery_installer::install(true);
-
-    module::load_modules();
-
-    foreach (array("user", "comment", "organize", "info", "rss",
-                   "search", "slideshow", "tag") as $module_name) {
+    foreach (array("gallery", "user", "comment", "organize", "info", "rest",
+                   "rss", "search", "slideshow", "tag") as $module_name) {
       module::install($module_name);
       module::activate($module_name);
     }
@@ -85,11 +81,6 @@ class Packager_Controller extends Controller {
     Database::instance()->query("TRUNCATE {caches}");
     Database::instance()->query("TRUNCATE {sessions}");
     Database::instance()->query("TRUNCATE {logs}");
-    db::build()
-      ->delete("vars")
-      ->where("module_name", "=", "gallery")
-      ->where("name", "=", "_cache")
-      ->execute();
     db::build()->update("users")
       ->set(array("password" => ""))
       ->where("id", "in", array(1, 2))
@@ -163,9 +154,11 @@ class Packager_Controller extends Controller {
 
     $paths = array();
     foreach($objects as $name => $file){
-      if ($file->getBasename() == "database.php") {
+      $path = $file->getPath();
+      $basename = $file->getBasename();
+      if ($basename == "database.php" || $basename == "." || $basename == "..") {
         continue;
-      } else if (basename($file->getPath()) == "logs" && $file->getBasename() != ".htaccess") {
+      } else if (basename($path) == "logs" && $basename != ".htaccess") {
         continue;
       }
 
@@ -186,6 +179,7 @@ class Packager_Controller extends Controller {
     foreach ($paths as $path) {
       fwrite($fd, "!file_exists($path) && mkdir($path);\n");
     }
+    ksort($files);
     foreach ($files as $file => $contents) {
       fwrite($fd, "file_put_contents($file, base64_decode(\"$contents\"));\n");
     }

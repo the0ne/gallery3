@@ -99,6 +99,10 @@ class module_Core {
         $m->code_version = $m->version;
         $m->version = self::get_version($module_name);
         $m->locked = false;
+
+        if ($m->active && $m->version != $m->code_version) {
+          site_status::warning(t("Some of your modules are out of date.  <a href=\"%upgrader_url\">Upgrade now!</a>", array("upgrader_url" => url::site("upgrader"))), "upgrade_now");
+        }
       }
 
       // Lock certain modules
@@ -139,7 +143,7 @@ class module_Core {
   }
 
   /**
-   * Allow modules to indicate the impact of deactivating the specifeid module
+   * Allow modules to indicate the impact of deactivating the specified module
    * @param string $module_name
    * @return array an array of warning or error messages to be displayed
    */
@@ -165,6 +169,16 @@ class module_Core {
       call_user_func_array(array($installer_class, "install"), array());
     } else {
       module::set_version($module_name, 1);
+    }
+
+    // Set the weight of the new module, which controls the order in which the modules are
+    // loaded. By default, new modules are installed at the end of the priority list.  Since the
+    // id field is monotonically increasing, the easiest way to guarantee that is to set the weight
+    // the same as the id.  We don't know that until we save it for the first time
+    $module = ORM::factory("module")->where("name", "=", $module_name)->find();
+    if ($module->loaded()) {
+      $module->weight = $module->id;
+      $module->save();
     }
     module::load_modules();
 
@@ -204,22 +218,15 @@ class module_Core {
   static function upgrade($module_name) {
     $version_before = module::get_version($module_name);
     $installer_class = "{$module_name}_installer";
+    $available = module::available();
     if (method_exists($installer_class, "upgrade")) {
       call_user_func_array(array($installer_class, "upgrade"), array($version_before));
     } else {
-      $available = module::available();
       if (isset($available->$module_name->code_version)) {
         module::set_version($module_name, $available->$module_name->code_version);
       } else {
         throw new Exception("@todo UNKNOWN_MODULE");
       }
-    }
-
-    // Now the module is upgraded so deactivate it, but we can'it deactivae gallery or the
-    // current identity provider.
-    $identity_provider = module::get_var("gallery", "identity_provider", "user");
-    if (!in_array($module_name, array("gallery", $identity_provider)) ) {
-      self::deactivate($module_name);
     }
     module::load_modules();
 
@@ -230,6 +237,10 @@ class module_Core {
                     array("module_name" => $module_name,
                           "version_before" => $version_before,
                           "version_after" => $version_after)));
+    }
+
+    if ($version_after != $available->$module_name->code_version) {
+      throw new Exception("@todo MODULE_FAILED_TO_UPGRADE");
     }
   }
 
@@ -321,7 +332,15 @@ class module_Core {
     self::$modules = array();
     self::$active = array();
     $kohana_modules = array();
-    foreach (ORM::factory("module")->find_all() as $module) {
+
+    // In version 32 we introduced a weight column so we can specify the module order
+    // If we try to use that blindly, we'll break earlier versions before they can even
+    // run the upgrader.
+    $modules = module::get_version("gallery") < 32 ?
+      ORM::factory("module")->find_all():
+      ORM::factory("module")->order_by("weight")->find_all();
+
+    foreach ($modules as $module) {
       self::$modules[$module->name] = $module;
       if (!$module->active) {
         continue;
@@ -406,38 +425,21 @@ class module_Core {
    * @return the value
    */
   static function get_var($module_name, $name, $default_value=null) {
-    // We cache all vars in gallery._cache so that we can load all vars at once for
-    // performance.
+    // We cache vars so we can load them all at once for performance.
     if (empty(self::$var_cache)) {
-      $row = db::build()
-        ->select("value")
-        ->from("vars")
-        ->where("module_name", "=", "gallery")
-        ->where("name", "=", "_cache")
-        ->execute()
-        ->current();
-      if ($row) {
-        self::$var_cache = unserialize($row->value);
-      } else {
-        // gallery._cache doesn't exist.  Create it now.
+      self::$var_cache = Cache::instance()->get("var_cache");
+      if (empty(self::$var_cache)) {
+        // Cache doesn't exist, create it now.
         foreach (db::build()
                  ->select("module_name", "name", "value")
                  ->from("vars")
                  ->order_by("module_name")
                  ->order_by("name")
                  ->execute() as $row) {
-          if ($row->module_name == "gallery" && $row->name == "_cache") {
-            // This could happen if there's a race condition
-            continue;
-          }
           // Mute the "Creating default object from empty value" warning below
           @self::$var_cache->{$row->module_name}->{$row->name} = $row->value;
         }
-        $cache = ORM::factory("var");
-        $cache->module_name = "gallery";
-        $cache->name = "_cache";
-        $cache->value = serialize(self::$var_cache);
-        $cache->save();
+        Cache::instance()->set("var_cache", self::$var_cache, array("vars"));
       }
     }
 
@@ -466,11 +468,7 @@ class module_Core {
     $var->value = $value;
     $var->save();
 
-    db::build()
-      ->delete("vars")
-      ->where("module_name", "=", "gallery")
-      ->where("name", "=", "_cache")
-      ->execute();
+    Cache::instance()->delete("var_cache");
     self::$var_cache = null;
  }
 
@@ -495,11 +493,7 @@ class module_Core {
       ->where("name", "=", $name)
       ->execute();
 
-    db::build()
-      ->delete("vars")
-      ->where("module_name", "=", "gallery")
-      ->where("name", "=", "_cache")
-      ->execute();
+    Cache::instance()->delete("var_cache");
     self::$var_cache = null;
   }
 
@@ -517,11 +511,7 @@ class module_Core {
       $var->delete();
     }
 
-    db::build()
-      ->delete("vars")
-      ->where("module_name", "=", "gallery")
-      ->where("name", "=", "_cache")
-      ->execute();
+    Cache::instance()->delete("var_cache");
     self::$var_cache = null;
   }
 

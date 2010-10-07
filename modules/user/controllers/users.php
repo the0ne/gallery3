@@ -41,7 +41,7 @@ class Users_Controller extends Controller {
       // Translate ORM validation errors into form error messages
       foreach ($e->validation->errors() as $key => $error) {
         $form->edit_user->inputs[$key]->add_error($error, 1);
-     }
+      }
       $valid = false;
     }
 
@@ -54,11 +54,10 @@ class Users_Controller extends Controller {
       $user->save();
       module::event("user_edit_form_completed", $user, $form);
       message::success(t("User information updated"));
-      print json_encode(
-        array("result" => "success",
-              "resource" => url::site("users/{$user->id}")));
+      json::reply(array("result" => "success",
+                        "resource" => url::site("users/{$user->id}")));
     } else {
-      print json_encode(array("result" => "error", "form" => (string) $form));
+      json::reply(array("result" => "error", "html" => (string)$form));
     }
   }
 
@@ -87,14 +86,13 @@ class Users_Controller extends Controller {
       message::success(t("Password changed"));
       module::event("user_auth", $user);
       module::event("user_password_change", $user);
-      print json_encode(
-        array("result" => "success",
-              "resource" => url::site("users/{$user->id}")));
+      json::reply(array("result" => "success",
+                        "resource" => url::site("users/{$user->id}")));
     } else {
       log::warning("user", t("Failed password change for %name", array("name" => $user->name)));
       $name = $user->name;
       module::event("user_auth_failed", $name);
-      print json_encode(array("result" => "error", "form" => (string) $form));
+      json::reply(array("result" => "error", "html" => (string)$form));
     }
   }
 
@@ -122,14 +120,13 @@ class Users_Controller extends Controller {
       module::event("user_change_email_form_completed", $user, $form);
       message::success(t("Email address changed"));
       module::event("user_auth", $user);
-      print json_encode(
-        array("result" => "success",
-              "resource" => url::site("users/{$user->id}")));
+      json::reply(array("result" => "success",
+                        "resource" => url::site("users/{$user->id}")));
     } else {
       log::warning("user", t("Failed email change for %name", array("name" => $user->name)));
       $name = $user->name;
       module::event("user_auth_failed", $name);
-      print json_encode(array("result" => "error", "form" => (string) $form));
+      json::reply(array("result" => "error", "html" => (string)$form));
     }
   }
 
@@ -192,7 +189,7 @@ class Users_Controller extends Controller {
     $group->password("password")->label(t("Current password"))->id("g-password")
       ->callback("auth::validate_too_many_failed_auth_attempts")
       ->callback("user::valid_password")
-      ->error_messages("invalid", t("Incorrect password"))
+      ->error_messages("invalid_password", t("Incorrect password"))
       ->error_messages(
         "too_many_failed_auth_attempts",
         t("Too many incorrect passwords.  Try again later"));
@@ -234,7 +231,7 @@ class Users_Controller extends Controller {
     $locales = array_merge(array("" => t("« none »")), $locales);
     $selected_locale = ($user && $user->locale) ? $user->locale : "";
     $form->dropdown("locale")
-      ->label(t("Language Preference"))
+      ->label(t("Language preference"))
       ->options($locales)
       ->selected($selected_locale);
   }

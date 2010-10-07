@@ -18,19 +18,53 @@
  * Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA  02110-1301, USA.
  */
 class gallery_Core {
-  const VERSION = "3.0 RC1 (Santa Fe)";
+  const VERSION = "3.0 (Santa Fe)";
 
   /**
    * If Gallery is in maintenance mode, then force all non-admins to get routed to a "This site is
    * down for maintenance" page.
    */
   static function maintenance_mode() {
-    $maintenance_mode = Kohana::config("core.maintenance_mode", false, false);
+    // @todo: we need a mechanism here to identify controllers that are still legally accessible
+    // when the entire Gallery is in maintenance mode.  Perhaps a controller class function or
+    // method?
+    // https://sourceforge.net/apps/trac/gallery/ticket/1411
+    if (Router::$controller != "login" &&
+        Router::$controller != "combined" &&
+        module::get_var("gallery", "maintenance_mode", 0) &&
+        !identity::active_user()->admin) {
+      Session::instance()->set("continue_url", url::abs_site("admin/maintenance"));
+      Router::$controller = "login";
+      Router::$controller_path = MODPATH . "gallery/controllers/login.php";
+      Router::$method = "html";
+    }
+  }
 
-    if (Router::$controller != "login" && !empty($maintenance_mode) && !identity::active_user()->admin) {
-      Router::$controller = "maintenance";
-      Router::$controller_path = MODPATH . "gallery/controllers/maintenance.php";
-      Router::$method = "index";
+  /**
+   * If the gallery is only available to registered users and the user is not logged in, present
+   * the login page.
+   */
+  static function private_gallery() {
+    // @todo: we need a mechanism here to identify controllers that are still legally accessible
+    // when the entire Gallery is private.  Perhaps a controller class function or method?
+    // https://sourceforge.net/apps/trac/gallery/ticket/1411
+    if (Router::$controller != "login" &&
+        Router::$controller != "combined" &&
+        Router::$controller != "digibug" &&
+        identity::active_user()->guest &&
+        !access::user_can(identity::guest(), "view", item::root()) &&
+        php_sapi_name() != "cli") {
+      if (Router::$controller == "admin") {
+        // At this point we're in the admin theme and it doesn't have a themed login page, so
+        // we can't just swap in the login controller and have it work.  So redirect back to the
+        // root item where we'll run this code again with the site theme.
+        url::redirect(item::root()->abs_url());
+      } else {
+        Session::instance()->set("continue_url", url::abs_current());
+        Router::$controller = "login";
+        Router::$controller_path = MODPATH . "gallery/controllers/login.php";
+        Router::$method = "html";
+      }
     }
   }
 
@@ -58,7 +92,7 @@ class gallery_Core {
    * @return string
    */
   static function date_time($timestamp) {
-    return date(module::get_var("gallery", "date_time_format", "Y-M-d H:i:s"), $timestamp);
+    return date(module::get_var("gallery", "date_time_format"), $timestamp);
   }
 
   /**
@@ -67,7 +101,7 @@ class gallery_Core {
    * @return string
    */
   static function date($timestamp) {
-    return date(module::get_var("gallery", "date_format", "Y-M-d"), $timestamp);
+    return date(module::get_var("gallery", "date_format"), $timestamp);
   }
 
   /**
@@ -114,4 +148,17 @@ class gallery_Core {
     return $file_name;
   }
 
+  /**
+   * Set the PATH environment variable to the paths specified.
+   * @param  array   Array of paths.  Each array entry can contain a colon separated list of paths.
+   */
+  static function set_path_env($paths) {
+    $path_env = array();
+    foreach ($paths as $path) {
+      if ($path) {
+        array_push($path_env, $path);
+      }
+    }
+    putenv("PATH=" .  implode(":", $path_env));
+  }
 }

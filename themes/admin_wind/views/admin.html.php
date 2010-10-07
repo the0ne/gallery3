@@ -6,17 +6,16 @@
     <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
     <title>
       <? if ($page_title): ?>
-        <?= $page_title ?>
+        <?= t("Gallery Admin: %page_title", array("page_title" => $page_title)) ?>
       <? else: ?>
         <?= t("Admin dashboard") ?>
       <? endif ?>
     </title>
-    <link rel="shortcut icon" href="<?= url::file("lib/images/favicon.ico") ?>" type="image/x-icon" />
+    <link rel="shortcut icon" href="<?= url::file(module::get_var("gallery", "favicon_url")) ?>" type="image/x-icon" />
 
     <?= $theme->css("yui/reset-fonts-grids.css") ?>
     <?= $theme->css("themeroller/ui.base.css") ?>
     <?= $theme->css("superfish/css/superfish.css") ?>
-    <?= $theme->css("gallery.common.css") ?>
     <?= $theme->css("screen.css") ?>
     <!--[if lt IE 8]>
     <link rel="stylesheet" type="text/css" href="<?= $theme->url("fix-ie.css") ?>"
@@ -54,9 +53,11 @@
           &larr; <?= t("back to the ...") ?>
         </a>
         <?= $theme->user_menu() ?>
-        <div id="g-site-admin-menu" class="ui-helper-clearfix">
+        <!-- hide the menu until after the page has loaded, to minimize menu flicker -->
+        <div id="g-site-admin-menu" class="ui-helper-clearfix" style="visibility: hidden">
           <?= $theme->admin_menu() ?>
         </div>
+        <script type="text/javascript"> $(document).ready(function() { $("#g-site-admin-menu").css("visibility", "visible"); }) </script>
         <?= $theme->admin_header_bottom() ?>
       </div>
       <div id="bd">
@@ -76,9 +77,11 @@
       </div>
       <div id="g-footer" class="g-inline ui-helper-clearfix">
         <?= $theme->admin_footer() ?>
-        <div>
+        <? if (module::get_var("gallery", "show_credits")): ?>
+        <ul id="g-credits" class="g-inline">
           <?= $theme->admin_credits() ?>
-        </div>
+        </ul>
+        <? endif ?>
       </div>
     </div>
     <?= $theme->admin_page_bottom() ?>

@@ -18,10 +18,15 @@
  * Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA  02110-1301, USA.
  */
 class User_Profile_Controller extends Controller {
+
   public function show($id) {
     // If we get here, then we should have a user id other than guest.
     $user = identity::lookup_user($id);
     if (!$user) {
+      throw new Kohana_404_Exception();
+    }
+
+    if (!$this->_can_view_profile_pages($user)) {
       throw new Kohana_404_Exception();
     }
 
@@ -44,26 +49,60 @@ class User_Profile_Controller extends Controller {
 
   public function contact($id) {
     $user = identity::lookup_user($id);
+    if (!$this->_can_view_profile_pages($user)) {
+      throw new Kohana_404_Exception();
+    }
+
     print user_profile::get_contact_form($user);
   }
 
   public function send($id) {
     access::verify_csrf();
     $user = identity::lookup_user($id);
+    if (!$this->_can_view_profile_pages($user)) {
+      throw new Kohana_404_Exception();
+    }
+
     $form = user_profile::get_contact_form($user);
     if ($form->validate()) {
       Sendmail::factory()
         ->to($user->email)
         ->subject(html::clean($form->message->subject->value))
         ->header("Mime-Version", "1.0")
-        ->header("Content-type", "text/html; charset=iso-8859-1")
+        ->header("Content-type", "text/html; charset=UTF-8")
         ->reply_to($form->message->reply_to->value)
         ->message(html::purify($form->message->message->value))
         ->send();
       message::success(t("Sent message to %user_name", array("user_name" => $user->display_name())));
-      print json_encode(array("result" => "success"));
+      json::reply(array("result" => "success"));
     } else {
-      print json_encode(array("result" => "error", "form" => (string)$form));
+      json::reply(array("result" => "error", "html" => (string)$form));
+    }
+  }
+
+  private function _can_view_profile_pages($user) {
+    if (!$user->loaded()) {
+      return false;
+    }
+
+    if ($user->id == identity::active_user()->id) {
+      // You can always view your own profile
+      return true;
+    }
+
+    switch (module::get_var("gallery", "show_user_profiles_to")) {
+    case "admin_users":
+      return identity::active_user()->admin;
+
+    case "registered_users":
+      return !identity::active_user()->guest;
+
+    case "everybody":
+      return true;
+
+    default:
+      // Fail in private mode on an invalid setting
+      return false;
     }
   }
 }

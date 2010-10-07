@@ -222,7 +222,7 @@ class access_Core {
       self::_update_access_non_view_cache($group, $perm_name, $album);
     }
 
-    self::_update_htaccess_files($album, $group, $perm_name, $value);
+    self::update_htaccess_files($album, $group, $perm_name, $value);
     model_cache::clear();
   }
 
@@ -263,18 +263,40 @@ class access_Core {
   }
 
   /**
-   * Recalculate the permissions for a given item and its hierarchy.  $item must be an album.
+   * Recalculate the permissions for an album's hierarchy.
    */
-  static function recalculate_permissions($item) {
+  static function recalculate_album_permissions($album) {
     foreach (self::_get_all_groups() as $group) {
       foreach (ORM::factory("permission")->find_all() as $perm) {
         if ($perm->name == "view") {
-          self::_update_access_view_cache($group, $item);
+          self::_update_access_view_cache($group, $album);
         } else {
-          self::_update_access_non_view_cache($group, $perm->name, $item);
+          self::_update_access_non_view_cache($group, $perm->name, $album);
         }
       }
     }
+    model_cache::clear();
+  }
+
+  /**
+   * Recalculate the permissions for a single photo.
+   */
+  static function recalculate_photo_permissions($photo) {
+    $parent = $photo->parent();
+    $parent_access_cache = ORM::factory("access_cache")->where("item_id", "=", $parent->id)->find();
+    $photo_access_cache = ORM::factory("access_cache")->where("item_id", "=", $photo->id)->find();
+    foreach (self::_get_all_groups() as $group) {
+      foreach (ORM::factory("permission")->find_all() as $perm) {
+        $field = "{$perm->name}_{$group->id}";
+        if ($perm->name == "view") {
+          $photo->$field = $parent->$field;
+        } else {
+          $photo_access_cache->$field = $parent_access_cache->$field;
+        }
+      }
+    }
+    $photo_access_cache->save();
+    $photo->save();
     model_cache::clear();
   }
 
@@ -623,11 +645,18 @@ class access_Core {
   }
 
   /**
-   * Maintain .htacccess files to prevent direct access to albums, resizes and thumbnails when we
-   * apply the view and view_full permissions to guest users.
+   * Rebuild the .htaccess files that prevent direct access to albums, resizes and thumbnails.  We
+   * call this internally any time we change the view or view_full permissions for guest users.
+   * This function is only public because we use it in maintenance tasks.
+   *
+   * @param  Item_Model   the album
+   * @param  Group_Model  the group whose permission is changing
+   * @param  string       the permission name
+   * @param  string       the new permission value (eg access::DENY)
    */
-  private static function _update_htaccess_files($album, $group, $perm_name, $value) {
-    if ($group->id != 1 || !($perm_name == "view" || $perm_name == "view_full")) {
+  static function update_htaccess_files($album, $group, $perm_name, $value) {
+    if ($group->id != identity::everybody()->id ||
+        !($perm_name == "view" || $perm_name == "view_full")) {
       return;
     }
 
@@ -687,6 +716,7 @@ class access_Core {
     @mkdir(VARPATH . "security_test");
     try {
       if ($fp = @fopen(VARPATH . "security_test/.htaccess", "w+")) {
+        fwrite($fp, "Options +FollowSymLinks\n");
         fwrite($fp, "RewriteEngine On\n");
         fwrite($fp, "RewriteRule verify $success_url [L]\n");
         fclose($fp);
@@ -697,8 +727,18 @@ class access_Core {
         fclose($fp);
       }
 
-      list ($response) = remote::do_request(url::abs_file("var/security_test/verify"));
-      $works = $response == "HTTP/1.1 200 OK";
+      // Proxy our authorization headers so that if the entire Gallery is covered by Basic Auth
+      // this callback will still work.
+      $headers = array();
+      if (function_exists("apache_request_headers")) {
+        $arh = apache_request_headers();
+        if (!empty($arh["Authorization"])) {
+          $headers["Authorization"] = $arh["Authorization"];
+        }
+      }
+      list ($status, $headers, $body) =
+        remote::do_request(url::abs_file("var/security_test/verify"), "GET", $headers);
+      $works = ($status == "HTTP/1.1 200 OK") && ($body == "success");
     } catch (Exception $e) {
       @dir::unlink(VARPATH . "security_test");
       throw $e;

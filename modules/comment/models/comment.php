@@ -61,7 +61,7 @@ class Comment_Model extends ORM {
     if (!$array) {
       $this->rules = array(
         "guest_name"  => array("callbacks" => array(array($this, "valid_author"))),
-        "guest_email" => array("rules"     => array("email")),
+        "guest_email" => array("callbacks" => array(array($this, "valid_email"))),
         "guest_url"   => array("rules"     => array("url")),
         "item_id"     => array("callbacks" => array(array($this, "valid_item"))),
         "state"       => array("rules"     => array("Comment_Model::valid_state")),
@@ -145,6 +145,19 @@ class Comment_Model extends ORM {
   }
 
   /**
+   * Make sure that the email address is legal.
+   */
+  public function valid_email(Validation $v, $field) {
+    if ($this->author_id == identity::guest()->id) {
+      if (empty($v->guest_email)) {
+        $v->add_error("guest_email", "required");
+      } else if (!valid::email($v->guest_email)) {
+        $v->add_error("guest_email", "invalid");
+      }
+    }
+  }
+
+  /**
    * Make sure we have a valid associated item id.
    */
   public function valid_item(Validation $v, $field) {
@@ -161,5 +174,21 @@ class Comment_Model extends ORM {
    */
   static function valid_state($value) {
     return in_array($value, array("published", "unpublished", "spam", "deleted"));
+  }
+
+  /**
+   * Same as ORM::as_array() but convert id fields into their RESTful form.
+   */
+  public function as_restful_array() {
+    $data = array();
+    foreach ($this->as_array() as $key => $value) {
+      if (strncmp($key, "server_", 7)) {
+        $data[$key] = $value;
+      }
+    }
+    $data["item"] = rest::url("item", $this->item());
+    unset($data["item_id"]);
+
+    return $data;
   }
 }

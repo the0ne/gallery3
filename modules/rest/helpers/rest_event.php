@@ -29,6 +29,13 @@ class rest_event {
        ->execute();
   }
 
+
+  static function change_provider($new_provider) {
+    db::build()
+      ->delete("user_access_keys")
+      ->execute();
+  }
+
   /**
    * Called after a user has been added.  Just add a remote access key
    * on every add.
@@ -44,13 +51,6 @@ class rest_event {
    * Called when admin is editing a user
    */
   static function user_edit_form_admin($user, $form) {
-    self::_get_access_key_form($user, $form);
-  }
-
-  /**
-   * Called when user is editing their own form
-   */
-  static function user_edit_form($user, $form) {
     self::_get_access_key_form($user, $form);
   }
 
@@ -97,6 +97,6 @@ class rest_event {
       $key->save();
     }
     $view->rest_key = $key->access_key;
-    $data->content[] = (object)array("title" => t("REST api"), "view" => $view);
+    $data->content[] = (object)array("title" => t("REST API"), "view" => $view);
   }
 }

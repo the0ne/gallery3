@@ -61,8 +61,7 @@ class IdentityProvider_Core {
    * Return a commen confirmation message
    */
   static function confirmation_message() {
-    return t("Are you sure you want to change your Identity Provider? " .
-             "Continuing will delete all existing users.");
+    return t("Are you sure you want to change your Identity Provider? Continuing will delete all existing users.");
   }
 
   static function change_provider($new_provider) {
@@ -99,18 +98,23 @@ class IdentityProvider_Core {
         $restore_already_running = true;
 
         // Make sure new provider is not in the database
-        module::uninstall($new_provider);
+        try {
+          module::uninstall($new_provider);
 
-        // Lets reset to the current provider so that the gallery installation is still
-        // working.
-        module::set_var("gallery", "identity_provider", null);
-        IdentityProvider::change_provider($current_provider);
-        module::activate($current_provider);
+          // Lets reset to the current provider so that the gallery installation is still
+          // working.
+          module::set_var("gallery", "identity_provider", null);
+          IdentityProvider::change_provider($current_provider);
+          module::activate($current_provider);
+        } catch (Exception $e2) {
+          Kohana_Log::add("error", "Error restoring original identity provider\n" .
+                          $e2->getMessage() . "\n" . $e2->getTraceAsString());
+        }
+          
         message::error(
-          t("Error attempting to enable \"%new_provider\" identity provider, " .
-            "reverted to \"%old_provider\" identity provider",
+          t("Error attempting to enable \"%new_provider\" identity provider, reverted to \"%old_provider\" identity provider",
             array("new_provider" => $new_provider, "old_provider" => $current_provider)));
-
+        
         $restore_already_running = false;
       }
       throw $e;

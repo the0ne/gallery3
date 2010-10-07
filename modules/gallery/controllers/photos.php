@@ -24,9 +24,9 @@ class Photos_Controller extends Items_Controller {
       // sure that we're actually receiving an object
       throw new Kohana_404_Exception();
     }
-  
+
     access::required("view", $photo);
-  
+
     $where = array(array("type", "!=", "album"));
     $position = $photo->parent()->get_position($photo, $where);
     if ($position > 1) {
@@ -41,7 +41,7 @@ class Photos_Controller extends Items_Controller {
     $template->set_global("item", $photo);
     $template->set_global("children", array());
     $template->set_global("children_count", 0);
-    $template->set_global("parents", $photo->parents());
+    $template->set_global("parents", $photo->parents()->as_array());
     $template->set_global("next_item", $next_item);
     $template->set_global("previous_item", $previous_item);
     $template->set_global("sibling_count", $photo->parent()->viewable()->children_count($where));
@@ -87,13 +87,13 @@ class Photos_Controller extends Items_Controller {
 
       if ($form->from_id->value == $photo->id) {
         // Use the new url; it might have changed.
-        print json_encode(array("result" => "success", "location" => $photo->url()));
+        json::reply(array("result" => "success", "location" => $photo->url()));
       } else {
         // Stay on the same page
-        print json_encode(array("result" => "success"));
+        json::reply(array("result" => "success"));
       }
     } else {
-      print json_encode(array("result" => "error", "form" => (string) $form));
+      json::reply(array("result" => "error", "html" => (string)$form));
     }
   }
 

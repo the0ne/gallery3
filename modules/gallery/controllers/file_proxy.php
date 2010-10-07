@@ -60,23 +60,23 @@ class File_Proxy_Controller extends Controller {
     foreach (explode("/", $path) as $path_part) {
       $encoded_path[] = rawurlencode($path_part);
     }
-
+    $encoded_path = implode("/", $encoded_path);
     // We now have the relative path to the item.  Search for it in the path cache
     // The patch cache is urlencoded so re-encode the path. (it was decoded earlier to
     // insure that the paths are normalized.
     $item = ORM::factory("item")
-      ->where("relative_path_cache", "=", implode("/", $encoded_path))->find();
+      ->where("relative_path_cache", "=", $encoded_path)->find();
     if (!$item->loaded()) {
       // We didn't turn it up.  It's possible that the relative_path_cache is out of date here.
       // There was fallback code, but bharat deleted it in 8f1bca74.  If it turns out to be
       // necessary, it's easily resurrected.
 
       // If we're looking for a .jpg then it's it's possible that we're requesting the thumbnail
-      // for a movie.  In that case, the .flv or .mp4 file would have been converted to a .jpg.
-      // So try some alternate types:
+      // for a movie.  In that case, the .flv, .mp4 or .m4v file would have been converted to a
+      // .jpg. So try some alternate types:
       if (preg_match('/.jpg$/', $path)) {
-        foreach (array("flv", "mp4") as $ext) {
-          $movie_path = preg_replace('/.jpg$/', ".$ext", $path);
+        foreach (array("flv", "mp4", "m4v") as $ext) {
+          $movie_path = preg_replace('/.jpg$/', ".$ext", $encoded_path);
           $item = ORM::factory("item")->where("relative_path_cache", "=", $movie_path)->find();
           if ($item->loaded()) {
             break;
@@ -116,6 +116,8 @@ class File_Proxy_Controller extends Controller {
       throw new Kohana_404_Exception();
     }
 
+    header("Content-Length: " . filesize($file));
+
     header("Pragma:");
     // Check that the content hasn't expired or it wasn't changed since cached
     expires::check(2592000, $item->updated);
@@ -127,14 +129,11 @@ class File_Proxy_Controller extends Controller {
 
     // Dump out the image.  If the item is a movie, then its thumbnail will be a JPG.
     if ($item->is_movie() && $type != "albums") {
-      header("Content-type: image/jpeg");
+      header("Content-Type: image/jpeg");
     } else {
       header("Content-Type: $item->mime_type");
     }
-
     Kohana::close_buffers(false);
-    $fd = fopen($file, "rb");
-    fpassthru($fd);
-    fclose($fd);
+    readfile($file);
   }
 }

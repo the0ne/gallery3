@@ -139,6 +139,15 @@ class g2_import_Core {
                 "function G2_Gallery"),
           array_merge(array("<?php defined(\"SYSPATH\") or die(\"No direct script access.\") ?>\n"),
                       file("$base_dir/modules/core/classes/Gallery.class"))));
+    } else {
+      // Ok, this is a good one.  If you're running a bytecode accelerator and you move your
+      // Gallery install, these files sometimes get cached with the wrong path and then fail to
+      // load properly.
+      // Documented in https://sourceforge.net/apps/trac/gallery/ticket/1253
+      touch("$mod_path/embed.php");
+      touch("$mod_path/main.php");
+      touch("$mod_path/bootstrap.inc");
+      touch("$mod_path/Gallery.class.inc");
     }
 
     require("$mod_path/embed.php");
@@ -169,7 +178,17 @@ class g2_import_Core {
            "module", "rewrite", "modrewrite.embeddedLocation", $g2_embed_location));
       g2($gallery->getStorage()->checkPoint());
     }
-    self::$g2_base_url = $g2_embed_location;
+
+    if ($g2_embed_location) {
+      self::$g2_base_url = $g2_embed_location;
+    } else {
+      self::$g2_base_url = $GLOBALS["gallery"]->getUrlGenerator()->generateUrl(
+        array(),
+        array("forceSessionId" => false,
+              "htmlEntities" => false,
+              "urlEncode" => false,
+              "useAuthToken" => false));
+    }
 
     return true;
   }
@@ -433,13 +452,21 @@ class g2_import_Core {
         "title" => "title",
         "viewCount" => "view_count");
       $direction_map = array(
-        ORDER_ASCENDING => "asc",
-        ORDER_DESCENDING => "desc");
+        1 => "ASC",
+        ORDER_ASCENDING => "ASC",
+        ORDER_DESCENDING => "DESC");
       // Only consider G2's first sort order
       $g2_order = explode("|", $g2_album->getOrderBy() . "");
       $g2_order = $g2_order[0];
+      if (empty($g2_order)) {
+        $g2_order = g2(GalleryCoreApi::getPluginParameter('module', 'core', 'default.orderBy'));
+      }
       $g2_order_direction = explode("|", $g2_album->getOrderDirection() . "");
       $g2_order_direction = $g2_order_direction[0];
+      if (empty($g2_order_direction)) {
+        $g2_order_direction =
+          g2(GalleryCoreApi::getPluginParameter('module', 'core', 'default.orderDirection'));
+      }
       if (array_key_exists($g2_order, $order_map)) {
         $album->sort_column = $order_map[$g2_order];
         $album->sort_order = $direction_map[$g2_order_direction];
@@ -502,7 +529,7 @@ class g2_import_Core {
         }
         try {
           $g3_album->save();
-          graphics::generate($g2_album);
+          graphics::generate($g3_album);
         } catch (Exception $e) {
           return (string) new G2_Import_Exception(
               t("Failed to generate an album highlight for album '%name'.",
@@ -571,6 +598,20 @@ class g2_import_Core {
         $item->description = self::_decode_html_special_chars(self::extract_description($g2_item));
         $item->owner_id = self::map($g2_item->getOwnerId());
         $item->save();
+
+        // If the item has a preferred derivative with a rotation, then rotate this image
+        // accordingly.  Should we obey scale rules as well?  I vote no because rotation is less
+        // destructive -- you lose too much data from scaling.
+        $g2_preferred = g2(GalleryCoreApi::fetchPreferredSource($g2_item));
+        if ($g2_preferred && $g2_preferred instanceof GalleryDerivative) {
+          if (preg_match("/rotate\|(-?\d+)/", $g2_preferred->getDerivativeOperations(), $matches)) {
+            $tmpfile = tempnam(TMPPATH, "rotate");
+            gallery_graphics::rotate($item->file_path(), $tmpfile, array("degrees" => $matches[1]));
+            $item->set_data_file($tmpfile);
+            $item->save();
+            unlink($tmpfile);
+          }
+        }
       } catch (Exception $e) {
         $exception_info = (string) new G2_Import_Exception(
             t("Corrupt image '%path'", array("path" => $g2_path)),
@@ -658,8 +699,7 @@ class g2_import_Core {
         $title = $g2_item->getTitle();
         $title or $title = $g2_item->getPathComponent();
         $messages[] =
-          t("<a href=\"%g2_url\">%title</a> from Gallery 2 could not be processed; " .
-            "(imported as <a href=\"%g3_url\">%title</a>)",
+          t("<a href=\"%g2_url\">%title</a> from Gallery 2 could not be processed; (imported as <a href=\"%g3_url\">%title</a>)",
             array("g2_url" => $g2_item_url,
                   "g3_url" => $item->url(),
                   "title" => $title));
@@ -815,17 +855,19 @@ class g2_import_Core {
                array("id" => $g2_comment_id, "exception" => (string)$e));
     }
 
+    if (self::map($g2_comment->getId())) {
+      // Already imported
+      return;
+    }
+
     $item_id = self::map($g2_comment->getParentId());
     if (empty($item_id)) {
       // Item was not mapped.
       return;
     }
 
-    $text = $g2_comment->getSubject();
-    if ($text) {
-      $text .= " ";
-    }
-    $text .= $g2_comment->getComment();
+    $text = join("\n", array($g2_comment->getSubject(), $g2_comment->getComment()));
+    $text = html_entity_decode($text);
 
     // Just import the fields we know about.  Do this outside of the comment API for now so that
     // we don't trigger spam filtering events
@@ -835,12 +877,12 @@ class g2_import_Core {
     if ($comment->author_id == identity::guest()->id) {
       $comment->guest_name = $g2_comment->getAuthor();
       $comment->guest_name or $comment->guest_name = (string) t("Anonymous coward");
+      $comment->guest_email = "unknown@nobody.com";
     }
     $comment->item_id = $item_id;
     $comment->text = self::_transform_bbcode($text);
     $comment->state = "published";
     $comment->server_http_host = $g2_comment->getHost();
-    $comment->created = $g2_comment->getDate();
     try {
       $comment->save();
     } catch (Exception $e) {
@@ -849,6 +891,16 @@ class g2_import_Core {
             array("id" => $g2_comment_id)),
           $e);
     }
+
+    self::set_map($g2_comment->getId(), $comment->id, "comment");
+
+    // Backdate the creation date.  We can't do this at creation time because
+    // Comment_Model::save() will override it.
+    db::update("comments")
+      ->set("created", $g2_comment->getDate())
+      ->set("updated", $g2_comment->getDate())
+      ->where("id", "=", $comment->id)
+      ->execute();
   }
 
   /**
