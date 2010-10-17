@@ -2,15 +2,21 @@
    // Based on the Password Strength Indictor By Benjamin Sterling
    // http://benjaminsterling.com/password-strength-indicator-and-generator/
    $.widget("ui.user_password_strength",  {
+     options: {
+        classes : ['g-password-strength10', 'g-password-strength20', 'g-password-strength30',
+                   'g-password-strength40', 'g-password-strength50', 'g-password-strength60',
+                   'g-password-strength70',' g-password-strength80',' g-password-strength90',
+                   'g-password-strength100']
+     },
      _init: function() {
        var self = this;
        $(this.element).keyup(function() {
-	 var strength = self.calculateStrength (this.value);
-	 var index = Math.min(Math.floor( strength / 10 ), 10);
+         var strength = self.calculateStrength (this.value);
+         var index = Math.min(Math.floor( strength / 10 ), 10);
          $("#g-password-gauge")
            .removeAttr('class')
-	   .addClass( "g-password-strength0" )
-	   .addClass( self.options.classes[ index ] );
+           .addClass( "g-password-strength0" )
+           .addClass( self.options.classes[ index ] );
        }).after("<div id='g-password-gauge' class='g-password-strength0'></div>");
      },
 
@@ -26,14 +32,6 @@
 
        // Normalizxe between 0 and 100
        return Math.max(0, Math.min(100, strength));
-     }
-   });
-   $.extend($.ui.user_password_strength,  {
-     defaults: {
-	classes : ['g-password-strength10', 'g-password-strength20', 'g-password-strength30',
-                   'g-password-strength40', 'g-password-strength50', 'g-password-strength60',
-                   'g-password-strength70',' g-password-strength80',' g-password-strength90',
-                   'g-password-strength100']
      }
    });
  })(jQuery);
