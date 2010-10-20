@@ -688,10 +688,18 @@ form .g-error {
 .g-loading-large,
 .g-dialog-loading-large {
   background: #e8e8e8 url('../images/loading-large.gif') no-repeat center center !important;
+  border: 1px solid black;
+  height: 100px;
+  position: absolute;
+  width: 100px;
 }
 
 .g-loading-small {
   background: #e8e8e8 url('../images/loading-small.gif') no-repeat center center !important;
+  border: 1px solid black;
+  height: 16px;
+  position: absolute;
+  width: 16px;
 }
 
 /** *******************************************************************
