@@ -20,7 +20,7 @@
 class Item_Model_Core extends ORM_MPTT {
   protected $children = "items";
   protected $sorting = array();
-  protected $data_file = null;
+  public $data_file = null;
 
   public function __construct($id=null) {
     parent::__construct($id);
@@ -166,8 +166,9 @@ class Item_Model_Core extends ORM_MPTT {
    */
   public function file_url($full_uri=false) {
     $relative_path = "var/albums/" . $this->relative_path();
+    $cache_buster = $this->_cache_buster($this->file_path());
     return ($full_uri ? url::abs_file($relative_path) : url::file($relative_path))
-      . "?m={$this->updated}";
+      . $cache_buster;
   }
 
   /**
@@ -198,7 +199,7 @@ class Item_Model_Core extends ORM_MPTT {
    * photo: http://example.com/gallery3/var/albums/album1/photo.thumb.jpg
    */
   public function thumb_url($full_uri=false) {
-    $cache_buster = "?m={$this->updated}";
+    $cache_buster = $this->_cache_buster($this->thumb_path());
     $relative_path = "var/thumbs/" . $this->relative_path();
     $base = ($full_uri ? url::abs_file($relative_path) : url::file($relative_path));
     if ($this->is_photo()) {
@@ -227,9 +228,9 @@ class Item_Model_Core extends ORM_MPTT {
    */
   public function resize_url($full_uri=false) {
     $relative_path = "var/resizes/" . $this->relative_path();
+    $cache_buster = $this->_cache_buster($this->resize_path());
     return ($full_uri ? url::abs_file($relative_path) : url::file($relative_path)) .
-      ($this->is_album() ? "/.album.jpg" : "")
-      . "?m={$this->updated}";
+      ($this->is_album() ? "/.album.jpg" : "") . $cache_buster;
   }
 
   /**
@@ -320,6 +321,7 @@ class Item_Model_Core extends ORM_MPTT {
       $this->updated = time();
       if (!$this->loaded()) {
         // Create a new item.
+        module::event("item_before_create", $this);
 
         // Set a weight if it's missing.  We don't do this in the constructor because it's not a
         // simple assignment.
@@ -398,6 +400,7 @@ class Item_Model_Core extends ORM_MPTT {
         module::event("item_created", $this);
       } else {
         // Update an existing item
+        module::event("item_before_update", $item);
 
         // If any significant fields have changed, load up a copy of the original item and
         // keep it around.
@@ -1021,5 +1024,9 @@ class Item_Model_Core extends ORM_MPTT {
       unset($data[$key]);
     }
     return $data;
+  }
+
+  private function _cache_buster($path) {
+    return "?m=" . (string)(file_exists($path) ? filemtime($path) : 0);
   }
 }
