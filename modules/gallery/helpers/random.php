@@ -17,6 +17,34 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA  02110-1301, USA.
  */
-include(SYSPATH . "config/user_agents.php");
-$config["robot"]["mj12bot"] = "MJ12bot";
-$config["robot"]["speedy spider"] = "Speedy Spider";
+class random_Core {
+  /**
+   * Return a random 32 bit hash value.
+   * @param string extra entropy data
+   */
+  static function hash($entropy="") {
+    return md5($entropy . uniqid(mt_rand(), true));
+  }
+
+  /**
+   * Return a random hexadecimal string of the given length.
+   * @param int the desired length of the string
+   */
+  static function string($length) {
+    return substr(random::hash(), 0, $length);
+  }
+
+  /**
+   * Return a random floating point number between 0 and 1
+   */
+  static function percent() {
+    return ((float)mt_rand()) / (float)mt_getrandmax();
+  }
+
+  /**
+   * Return a random number between 0 and mt_getrandmax()
+   */
+  static function int() {
+    return mt_rand();
+  }
+}
