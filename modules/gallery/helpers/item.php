@@ -157,6 +157,7 @@ class item_Core {
     $result = str_replace(" ", "-", $result);
     $result = str_replace("--", "-", $result);
     $result = text::transliterate_to_ascii($result);
+    $result = preg_replace("/[^A-Za-z0-9-_]+/", "-", $result);
     $result = trim(preg_replace("/[^\w\d_-]/si", "", $result));
     return trim($result, "-");
   }
