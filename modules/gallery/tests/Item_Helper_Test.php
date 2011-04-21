@@ -231,4 +231,10 @@ class Item_Helper_Test extends Gallery_Unit_Test_Case {
       $level3b->id,
       item::find_by_relative_url("{$level1->slug}/{$level2b->slug}/{$level3b->slug}")->id);
   }
+
+  public function convert_filename_to_slug_test() {
+    var $testFileName = "file name here";
+    var $translated = item::convert_file_to_slug($testFileName);
+    $this->assertEquals("", $translated);
+  }
 }
