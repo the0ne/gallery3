@@ -55,13 +55,13 @@ class Item_Helper_Test extends Gallery_Unit_Test_Case {
 
     $this->assert_equal("foobar", item::convert_filename_to_slug("ḟõõḃàř"));
 
-    $this->assert_equal(md5("Τη γλώσσα μου έδωσαν ελληνική"),
+    $this->assert_equal("Te-glossa-mou-edosan-ellenike",
                         item::convert_filename_to_slug("Τη γλώσσα μου έδωσαν ελληνική"));
-    $this->assert_equal(md5("На берегу пустынных волн"),
+    $this->assert_equal("Na-bierieghu-pustynnykh-voln",
                         item::convert_filename_to_slug("На берегу пустынных волн"));
-    $this->assert_equal(md5("ვეპხის ტყაოსანი შოთა რუსთაველი"),
+    $this->assert_equal("vepxis-tqaosani-shot-a-rust-aveli",
                         item::convert_filename_to_slug("ვეპხის ტყაოსანი შოთა რუსთაველი"));
-    $this->assert_equal(md5("我能吞下玻璃而不伤身体"),
+    $this->assert_equal("WoNengTunXiaBoLiErBuShangShenTi",
                        item::convert_filename_to_slug("我能吞下玻璃而不伤身体"));
   }
 
