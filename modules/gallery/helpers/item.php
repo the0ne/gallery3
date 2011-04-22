@@ -153,13 +153,17 @@ class item_Core {
    */
   static function convert_filename_to_slug($filename) {
     $result = pathinfo($filename, PATHINFO_FILENAME);
-    $result = str_replace("&", "-and-", $result);
+    $result = str_replace("&", t("-and-"), $result);
     $result = str_replace(" ", "-", $result);
     $result = str_replace("--", "-", $result);
     $result = text::transliterate_to_ascii($result);
     $result = preg_replace("/[^A-Za-z0-9-_]+/", "-", $result);
     $result = trim(preg_replace("/[^\w\d_-]/si", "", $result));
-    return trim($result, "-");
+    $result = trim($result, "-");
+    if ("" == $result) {
+      $result = md5($filename);
+    }
+    return $result;
   }
 
   /**

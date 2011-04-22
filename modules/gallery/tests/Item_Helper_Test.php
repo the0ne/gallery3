@@ -50,11 +50,19 @@ class Item_Helper_Test extends Gallery_Unit_Test_Case {
     $this->assert_equal("foo", item::convert_filename_to_slug("{[foo]}"));
     $this->assert_equal("foo-bar", item::convert_filename_to_slug("{[foo!@#!$@#^$@($!(@bar]}"));
     $this->assert_equal("english-text", item::convert_filename_to_slug("english text"));
-    $this->assert_equal("", item::convert_filename_to_slug(""));
-    $this->assert_equal("", item::convert_filename_to_slug("Τη γλώσσα μου έδωσαν ελληνική"));
-    $this->assert_equal("", item::convert_filename_to_slug("На берегу пустынных волн"));
-    $this->assert_equal("", item::convert_filename_to_slug("ვეპხის ტყაოსანი შოთა რუსთაველი"));
-    $this->assert_equal("", item::convert_filename_to_slug("我能吞下玻璃而不伤身体"));
+    $this->assert_equal(t("%foo-and-%bar", array("foo" => "foo", "bar" => "bar")),
+                          item::convert_filename_to_slug("foo&bar"));
+
+    $this->assert_equal("foobar", item::convert_filename_to_slug("ḟõõḃàř"));
+
+    $this->assert_equal(md5("Τη γλώσσα μου έδωσαν ελληνική"),
+                        item::convert_filename_to_slug("Τη γλώσσα μου έδωσαν ελληνική"));
+    $this->assert_equal(md5("На берегу пустынных волн"),
+                        item::convert_filename_to_slug("На берегу пустынных волн"));
+    $this->assert_equal(md5("ვეპხის ტყაოსანი შოთა რუსთაველი"),
+                        item::convert_filename_to_slug("ვეპხის ტყაოსანი შოთა რუსთაველი"));
+    $this->assert_equal(md5("我能吞下玻璃而不伤身体"),
+                       item::convert_filename_to_slug("我能吞下玻璃而不伤身体"));
   }
 
   public function move_test() {
