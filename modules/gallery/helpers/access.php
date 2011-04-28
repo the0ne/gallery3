@@ -346,6 +346,36 @@ class access_Core {
   }
 
   /**
+   * Copy permission values (used for core version 50 upgrade).
+   * It is a public method, but it is really internal hence the leading underscore in the name.
+   * Not part of the API.
+   *
+   * @param  string $from_perm_name
+   * @param  array  $array of permission names to copy
+   * @return void
+   */
+  static function _copy_permissions($from_perm_name, $to_perm_names) {
+    self::_copy_permission_columns($from_perm_name, $to_perm_names, ORM::factory("access_intent")->find_all());
+
+    self::_copy_permission_columns($from_perm_name, $to_perm_names, ORM::factory("access_cache")->find_all());
+  }
+
+  private static function _copy_permission_columns($from_perm_name, $to_perm_names, $query) {
+    $groups = self::_get_all_groups();
+    foreach ($query as $row) {
+      foreach ($groups as $group) {
+        $from_column = "{$from_perm_name}_{$group->id}";
+
+        foreach ($to_perm_names as $to_perm_name) {
+          $to_column = "{$to_perm_name}_{$group->id}";
+          $row->$to_column = $row->$from_column;
+        }
+        $row->save();
+      }
+    }
+  }
+
+  /**
    * Add the appropriate columns for a new group
    *
    * @param Group_Model $group

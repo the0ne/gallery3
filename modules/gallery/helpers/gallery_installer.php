@@ -221,13 +221,21 @@ class gallery_installer {
     access::register_permission("view", "View");
     access::register_permission("view_full", "View full size");
     access::register_permission("edit", "Edit");
-    access::register_permission("add", "Add");
+    access::register_permission("edit_all_photos", "Edit All Photos");
+    access::register_permission("edit_my_photos", "Edit My Photos");
+
+    access::register_permission("add_album", "Add Album");
+    access::register_permission("add_photo", "Add Photo");
 
     // Mark for translation (must be the same strings as used above)
     t("View full size");
     t("View");
     t("Edit");
-    t("Add");
+    t("Edit All Photos");
+    t("Edit My Photos");
+
+    t("Add Album");
+    t("Add Photo");
 
     // Hardcode the first item to sidestep ORM validation rules
     $now = time();
@@ -313,7 +321,7 @@ class gallery_installer {
     module::set_var("gallery", "extra_binary_paths", "/usr/local/bin:/opt/local/bin:/opt/bin");
     module::set_var("gallery", "timezone", null);
 
-    module::set_version("gallery", 49);
+    module::set_version("gallery", 50);
   }
 
   static function upgrade($version) {
@@ -691,6 +699,18 @@ class gallery_installer {
       // setting this value incorrectly, so we're going to stomp this value for v49.
       module::set_var("gallery", "timezone", null);
       module::set_version("gallery", $version = 49);
+    }
+
+    if ($version == 49) {
+      access::register_permission("edit_all", "Edit All Photos");
+      access::register_permission("edit_my_photos", "Edit My Photos");
+
+      access::register_permission("add_album", "Add Album");
+      access::register_permission("add_photo", "Add Photo");
+
+      access::_copy_permissions("add", array("add_album", "add_photo"));
+      access::delete_permission("add");
+      module::set_version("gallery", $version = 50);
     }
   }
 
