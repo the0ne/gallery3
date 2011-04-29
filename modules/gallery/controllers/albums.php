@@ -81,7 +81,7 @@ class Albums_Controller extends Items_Controller {
     access::verify_csrf();
     $album = ORM::factory("item", $parent_id);
     access::required("view", $album);
-    access::required("add", $album);
+    access::required("add_album", $album);
 
     $form = album::get_add_form($album);
     try {
@@ -166,7 +166,7 @@ class Albums_Controller extends Items_Controller {
   public function form_add($album_id) {
     $album = ORM::factory("item", $album_id);
     access::required("view", $album);
-    access::required("add", $album);
+    access::required("add_album", $album);
 
     print album::get_add_form($album);
   }

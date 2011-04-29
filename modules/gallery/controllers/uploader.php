@@ -21,7 +21,7 @@ class Uploader_Controller extends Controller {
   public function index($id) {
     $item = ORM::factory("item", $id);
     access::required("view", $item);
-    access::required("add", $item);
+    access::required("add_photo", $item);
     if (!$item->is_album()) {
       $item = $item->parent();
     }
@@ -37,7 +37,7 @@ class Uploader_Controller extends Controller {
   public function add_photo($id) {
     $album = ORM::factory("item", $id);
     access::required("view", $album);
-    access::required("add", $album);
+    access::required("add_photo", $album);
     access::verify_csrf();
 
     // The Flash uploader not call /start directly, so simulate it here for now.

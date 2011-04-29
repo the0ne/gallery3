@@ -758,8 +758,8 @@ class g2_import_Core {
     "core.view" => "view",
     "core.viewSource" => "view_full",
     "core.edit" => "edit",
-    "core.addDataItem" => "add",
-    "core.addAlbumItem" => "add");
+    "core.addDataItem" => "add_photo",
+    "core.addAlbumItem" => "add_album");
 
   /**
    * Imports G2 permissions, mapping G2's permission model to G3's
