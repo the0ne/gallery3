@@ -221,21 +221,21 @@ class gallery_installer {
     access::register_permission("view", "View");
     access::register_permission("view_full", "View full size");
     access::register_permission("edit", "Edit");
-    access::register_permission("edit_all_photos", "Edit All Photos");
-    access::register_permission("edit_my_photos", "Edit My Photos");
+    access::register_permission("edit_all_photos", "Edit all photos");
+    access::register_permission("edit_my_photos", "Edit my photos");
 
-    access::register_permission("add_album", "Add Album");
-    access::register_permission("add_photo", "Add Photo");
+    access::register_permission("add_album", "Add album");
+    access::register_permission("add_photo", "Add photo");
 
     // Mark for translation (must be the same strings as used above)
     t("View full size");
     t("View");
     t("Edit");
-    t("Edit All Photos");
-    t("Edit My Photos");
+    t("Edit all photos");
+    t("Edit my photos");
 
-    t("Add Album");
-    t("Add Photo");
+    t("Add album");
+    t("Add photo");
 
     // Hardcode the first item to sidestep ORM validation rules
     $now = time();
@@ -702,15 +702,42 @@ class gallery_installer {
     }
 
     if ($version == 49) {
-      access::register_permission("edit_all", "Edit All Photos");
-      access::register_permission("edit_my_photos", "Edit My Photos");
+      access::register_permission("edit_all", "Edit all photos");
+      access::register_permission("edit_my_photos", "Edit my photos");
 
-      access::register_permission("add_album", "Add Album");
-      access::register_permission("add_photo", "Add Photo");
+      access::register_permission("add_album", "Add album");
+      access::register_permission("add_photo", "Add photo");
 
-      access::_copy_permissions("add", array("add_album", "add_photo"));
+      self::_copy_permissions("add", array("add_album", "add_photo"), "access_intent");
+      self::_copy_permissions("add", array("add_album", "add_photo"), "access_cache");
       access::delete_permission("add");
       module::set_version("gallery", $version = 50);
+    }
+  }
+
+  private static function _copy_permissions($from_perm_name, $to_perm_names, $table) {
+    $query = ORM::factory($table)->find_all();
+    $groups = self::_get_all_groups();
+    foreach ($query as $row) {
+      foreach ($groups as $group) {
+        $from_column = "{$from_perm_name}_{$group->id}";
+
+        foreach ($to_perm_names as $to_perm_name) {
+          $to_column = "{$to_perm_name}_{$group->id}";
+          $row->$to_column = $row->$from_column;
+        }
+        $row->save();
+      }
+    }
+  }
+
+  private static function _get_all_groups() {
+    // When we build the gallery package, it's possible that there is no identity provider
+    // installed yet.  This is ok at packaging time, so work around it.
+   if (module::is_active(module::get_var("gallery", "identity_provider", "user"))) {
+      return identity::groups();
+    } else {
+      return array();
     }
   }
 
