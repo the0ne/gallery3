@@ -30,7 +30,7 @@
   </li>
   <? endforeach ?>
 <? else: ?>
-  <? if ($user->admin || access::can("add", $item)): ?>
+  <? if (access::can("add_photo", $item)): ?>
   <? $addurl = url::site("uploader/index/$item->id") ?>
   <li><?= t("There aren't any photos here yet! <a %attrs>Add some</a>.",
             array("attrs" => html::mark_clean("href=\"$addurl\" class=\"g-dialog-link\""))) ?></li>
