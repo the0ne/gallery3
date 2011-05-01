@@ -702,7 +702,7 @@ class gallery_installer {
     }
 
     if ($version == 49) {
-      access::register_permission("edit_all", "Edit all photos");
+      access::register_permission("edit_all_photos", "Edit all photos");
       access::register_permission("edit_my_photos", "Edit my photos");
 
       access::register_permission("add_album", "Add album");
