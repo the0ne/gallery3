@@ -99,13 +99,44 @@ class access_Core {
       return true;
     }
 
-    // Use the nearest parent album (including the current item) so that we take advantage
-    // of the cache when checking many items in a single album.
-    $id = ($item->type == "album") ? $item->id : $item->parent_id;
-    $resource = $perm_name == "view" ?
-      $item : model_cache::get("access_cache", $id, "item_id");
+    if ($perm_name == "edit") {
+      return self::_user_can_edit($user, $item);
+    } else {
+      // Use the nearest parent album (including the current item) so that we take advantage
+      // of the cache when checking many items in a single album.
+      $id = ($item->type == "album") ? $item->id : $item->parent_id;
+      $resource = $perm_name == "view" ?
+        $item : model_cache::get("access_cache", $id, "item_id");
+      return self::_check_permission($resource, $user, $perm_name);
+    }
+  }
 
+  static function _user_can_edit($user, $item) {
+    $id = ($item->type == "album") ? $item->id : $item->parent_id;
+    $resource = model_cache::get("access_cache", $id, "item_id");
+    $can_edit = self::_check_permission($resource, $user, "edit");
+
+    Kohana_Log::add("error", "can_edit: {$item->title}; {$item->owner_id} ");
+    Kohana_Log::add("error", "\tedit, $can_edit");
+    if (!$can_edit) {
+      $id = $item->parent_id;
+      if ($id) {
+        $resource = model_cache::get("access_cache", $item->parent_id, "item_id");
+        $can_edit = self::_check_permission($resource, $user, "edit_all_photos") ||
+          (self::_check_permission($resource, $user, "edit_my_photos") && $item->owner_id == $user->id);
+        Kohana_Log::add("error", "\t edit_al__photos || edit_my_photos, $can_edit");
+      }
+    }
+
+    return $can_edit;
+  }
+
+  private static function _check_permission($resource, $user, $perm_name) {
+    Kohana_Log::add("error", Kohana::debug($resource->as_array()));
     foreach ($user->groups() as $group) {
+      Kohana_Log::add("error", "\t{$group->name}");
+      Kohana_Log::add("error", "\t{$perm_name}_{$group->id}");
+      Kohana_Log::add("error", "\t" . $resource->__get("{$perm_name}_{$group->id}"));
       if ($resource->__get("{$perm_name}_{$group->id}") === access::ALLOW) {
         return true;
       }
