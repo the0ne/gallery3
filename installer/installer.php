@@ -192,9 +192,9 @@ class installer {
     }
 
     if (!preg_match("/^.$/u", "ñ")) {
-      $errors[] = "PHP is missing <a href=\"http://php.net/pcre\">Perl-Compatible Regular Expression</a> has not be compile with UTF-8 support.";
+      $errors[] = "PHP is missing <a href=\"http://php.net/pcre\">Perl-Compatible Regular Expression</a> with UTF-8 support.";
     } else if (!preg_match("/^\pL$/u", "ñ")) {
-      $errors[] = "PHP is missing <a href=\"http://php.net/pcre\">Perl-Compatible Regular Expression</a> has not be compile with Unicode support.";
+      $errors[] = "PHP is missing <a href=\"http://php.net/pcre\">Perl-Compatible Regular Expression</a> with Unicode support.";
     }
 
     if (!(function_exists("spl_autoload_register"))) {
@@ -211,6 +211,10 @@ class installer {
 
     if (!(extension_loaded("iconv"))) {
       $errors[] = "PHP is missing the <a href=\"http://php.net/iconv\">iconv extension</a>";
+    }
+
+    if (!(extension_loaded("xml"))) {
+      $errors[] = "PHP is missing the <a href=\"http://php.net/xml\">XML parser extension</a>";
     }
 
     if (!(extension_loaded("simplexml"))) {
